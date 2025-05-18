@@ -8,6 +8,19 @@ st.title("Asistente Turístico de Cuba 🇨🇺")
 
 # Inicialización de componentes
 chatbot = CubaChatbot()
+
+if not chatbot.vector_db.get_documents():
+    print("\nCargando datos iniciales...\n")
+    try:
+        chatbot.vector_db.reload_data()
+        # Verificar carga exitosa
+        if not chatbot.vector_db.get_documents():
+            st.error("Error: No se pudieron cargar los datos iniciales")
+            st.stop()
+    except Exception as e:
+        st.error(f"Error crítico: {str(e)}")
+        st.stop()
+        
 detector = GapDetector(chatbot.vector_db)
 updater = DynamicCrawler()  # Clase que maneja el re-crawling
 
@@ -47,5 +60,6 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
             status.update(label="✅ Actualización completada", state="complete")
     
     # Agregar respuesta final
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    response_text = " ".join([choice.message.content for choice in response.choices])
+    st.session_state.messages.append({"role": "assistant", "content": response_text})
     st.rerun()
