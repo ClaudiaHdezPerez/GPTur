@@ -6,8 +6,9 @@ import streamlit as st  # Si usas Streamlit para secrets
 class GapDetector:
     def __init__(self, vector_db):
         self.vector_db = vector_db
-        self.bm25_retriever = BM25Retriever.from_documents(self.vector_db.get())
-        self.client = MistralClient(api_key=st.secrets.mistral_api_key)  # O desde .env
+        # Cambia .get() por .get_documents()
+        self.bm25_retriever = BM25Retriever.from_documents(self.vector_db.get_documents())
+        self.client = MistralClient(api_key="XEV0fCx3MqiG9HqVkGc4Hy5qyD3WwPHr")
     
     def check_accuracy(self, query, response):
         # Paso 1: Buscar documentos relevantes
@@ -45,7 +46,8 @@ class GapDetector:
             
         # Paso 4: Devolver decisión
         return "ACTUALIZAR" in verification_result
-    
+        
     def identify_outdated_sources(self, query):
+        # Usa el método de VectorStorage
         relevant_docs = self.vector_db.similarity_search(query, k=2)
         return [doc.metadata['source'] for doc in relevant_docs]
