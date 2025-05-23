@@ -1,28 +1,45 @@
 import streamlit as st
 from chatbot.core import CubaChatbot
 from chatbot.gap_detector import GapDetector
-from crawlers.dynamic_crawler import DynamicCrawler  # Asumiendo que tienes esta clase
+from crawlers.dynamic_crawler import DynamicCrawler
+from agents.retriever_agent import RetrieverAgent
+from agents.generator_agent import GeneratorAgent
+from agents.gab_detector_agent import GapDetectorAgent
+from agents.updater_agent import UpdaterAgent
+from agents.agent_manager import AgentManager
 import time
 
 st.title("Asistente Turístico de Cuba 🇨🇺")
 
 # Inicialización de componentes
 chatbot = CubaChatbot()
-
 if not chatbot.vector_db.get_documents():
     print("\nCargando datos iniciales...\n")
     try:
         chatbot.vector_db.reload_data()
-        # Verificar carga exitosa
         if not chatbot.vector_db.get_documents():
             st.error("Error: No se pudieron cargar los datos iniciales")
             st.stop()
     except Exception as e:
         st.error(f"Error crítico: {str(e)}")
         st.stop()
-        
+
 detector = GapDetector(chatbot.vector_db)
-updater = DynamicCrawler()  # Clase que maneja el re-crawling
+updater = DynamicCrawler()
+
+# Inicialización de agentes
+retriever_agent = RetrieverAgent(chatbot.vector_db)
+generator_agent = GeneratorAgent(chatbot)
+gap_detector_agent = GapDetectorAgent(detector)
+updater_agent = UpdaterAgent(updater)
+
+# Inicialización del manager
+manager = AgentManager([
+    retriever_agent,
+    generator_agent,
+    gap_detector_agent,
+    updater_agent
+])
 
 # Estado de la conversación
 if "messages" not in st.session_state:
@@ -36,30 +53,35 @@ for msg in st.session_state.messages:
 
 # Procesar input del usuario
 if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
-    # Agregar mensaje de usuario
     st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Generar respuesta inicial
-    response = chatbot.generate_response(prompt)
-    
+
+    # Recuperar contexto (opcional, si lo usas)
+    retrieval_task = {"type": "retrieve", "query": prompt}
+    context = manager.dispatch(retrieval_task, {})
+
+    # Generar respuesta
+    generate_task = {"type": "generate", "prompt": prompt}
+    response = manager.dispatch(generate_task, context)
+
     # Verificar si necesita actualización
-    if detector.check_accuracy(prompt, response):
+    detect_task = {"type": "detect_gap", "prompt": prompt, "response": response}
+    needs_update = manager.dispatch(detect_task, context)
+
+    if needs_update:
         with st.status("🔄 Actualizando información...", expanded=True) as status:
-            # 1. Identificar fuentes a actualizar
+            # Identificar fuentes a actualizar
             sources = detector.identify_outdated_sources(prompt)
-            
-            # 2. Ejecutar crawler dinámico
-            updater.update_sources(sources)
-            
-            # 3. Re-indexar la base de datos vectorial
+            update_task = {"type": "update_sources", "sources": sources}
+            manager.dispatch(update_task, context)
             chatbot.vector_db.reload_data()
-            
-            # 4. Regenerar respuesta con nuevos datos
-            response = chatbot.generate_response(prompt)
-            
+            # Regenerar respuesta
+            response = manager.dispatch(generate_task, context)
             status.update(label="✅ Actualización completada", state="complete")
-    
+
     # Agregar respuesta final
-    response_text = " ".join([choice.message.content for choice in response.choices])
+    if hasattr(response, "choices"):
+        response_text = " ".join([choice.message.content for choice in response.choices])
+    else:
+        response_text = str(response)
     st.session_state.messages.append({"role": "assistant", "content": response_text})
     st.rerun()
