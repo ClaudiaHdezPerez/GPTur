@@ -3,6 +3,8 @@ from langchain.document_loaders import JSONLoader
 from .embeddings import get_embeddings
 from langchain.schema import Document
 import os
+import json
+from pathlib import Path
 
 class VectorStorage:
     def __init__(self):
@@ -19,6 +21,8 @@ class VectorStorage:
             embedding_function=self.embeddings,
             persist_directory=self.persist_dir
         )
+        self._sources_file = "sources.json"
+        self.sources = self._load_sources()
 
     def _initialize_empty_collection(self):
         """Crea una colección vacía si no existe"""
@@ -93,3 +97,27 @@ class VectorStorage:
         except Exception as e:
             print(f"Error en reload_data: {str(e)}")
             raise
+        
+    def _load_sources(self):
+        """Carga las fuentes desde el archivo JSON"""
+        sources_path = Path(__file__).parent.parent / "data" / self._sources_file
+        if sources_path.exists():
+            with open(sources_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return [] 
+        
+    def get_sources(self):
+        """Retorna la lista de URLs fuente para el crawler"""
+        return self.sources
+
+    def add_source(self, url):
+        """Agrega una nueva fuente a la lista"""
+        if url not in self.sources:
+            self.sources.append(url)
+            self._save_sources()
+
+    def _save_sources(self):
+        """Guarda las fuentes en el archivo JSON"""
+        sources_path = Path(__file__).parent.parent / "data" / self._sources_file
+        with open(sources_path, "w", encoding="utf-8") as f:
+            json.dump(self.sources, f, indent=2)
