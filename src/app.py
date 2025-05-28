@@ -7,6 +7,8 @@ from agents.generator_agent import GeneratorAgent
 from agents.gab_detector_agent import GapDetectorAgent
 from agents.updater_agent import UpdaterAgent
 from agents.agent_manager import AgentManager
+from agents.guide_agent import GuideAgent
+from agents.planner_agent import TravelPlannerAgent
 import time
 
 st.title("Asistente Turístico de Cuba 🇨🇺")
@@ -26,10 +28,12 @@ if not chatbot.vector_db.get_documents():
 
 detector = GapDetector(chatbot.vector_db)
 updater = DynamicCrawler()
+guide_agent = GuideAgent(chatbot.vector_db)
+planner_agent = TravelPlannerAgent(chatbot.vector_db)
 
 # Inicialización de agentes
 retriever_agent = RetrieverAgent(chatbot.vector_db)
-generator_agent = GeneratorAgent(chatbot)
+generator_agent = GeneratorAgent(guide_agent, planner_agent)
 gap_detector_agent = GapDetectorAgent(detector)
 updater_agent = UpdaterAgent(updater)
 
@@ -83,5 +87,22 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
         response_text = " ".join([choice.message.content for choice in response.choices])
     else:
         response_text = str(response)
-    st.session_state.messages.append({"role": "assistant", "content": response_text})
+    
+    # # Actualizar creencias del agente guía
+    # guide_agent.update_beliefs(prompt, st.session_state.messages)
+    
+    # # Deliberar y actuar
+    # guide_agent.deliberate()
+    # response = guide_agent.act()
+    
+    # # Si se detecta solicitud de itinerario
+    # if "itinerario" in prompt.lower() or "planear" in prompt.lower():
+    #     preferences = {
+    #         "destino": "Cuba",  # Podrías extraer esto del prompt
+    #         "dias": 5,  # Valor por defecto
+    #         "intereses": prompt
+    #     }
+    #     response = planner_agent.create_itinerary(preferences)
+    
+    st.session_state.messages.append({"role": "assistant", "content": response})
     st.rerun()
