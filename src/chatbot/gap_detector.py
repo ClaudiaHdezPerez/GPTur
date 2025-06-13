@@ -1,12 +1,11 @@
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
-from langchain.retrievers import BM25Retriever
+from langchain_community.retrievers import BM25Retriever
 import streamlit as st  # Si usas Streamlit para secrets
 
 class GapDetector:
     def __init__(self, vector_db):
         self.vector_db = vector_db
-        # Cambia .get() por .get_documents()
         self.bm25_retriever = BM25Retriever.from_documents(self.vector_db.get_documents())
         self.client = MistralClient(api_key="XEV0fCx3MqiG9HqVkGc4Hy5qyD3WwPHr")
     

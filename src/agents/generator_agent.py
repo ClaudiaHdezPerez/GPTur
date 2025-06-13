@@ -11,7 +11,7 @@ class GeneratorAgent(BaseAgent):
 
     def handle(self, task, context):
         prompt = task.get("prompt")
-        self.guide_agent.update_beliefs(prompt, st.session_state.messages)
+        self.guide_agent.update_beliefs(prompt, context)
     
         # Deliberar y actuar
         self.guide_agent.deliberate()
@@ -20,8 +20,8 @@ class GeneratorAgent(BaseAgent):
         # Si se detecta solicitud de itinerario
         if "itinerario" in prompt.lower() or "planear" in prompt.lower():
             preferences = {
-                "destino": "Cuba",  # Podrías extraer esto del prompt
-                "dias": 5,  # Valor por defecto
+                "destino": "Cuba",
+                "dias": 5,
                 "intereses": prompt
             }
             response = self.planner_agent.create_itinerary(preferences)
