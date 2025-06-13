@@ -4,7 +4,7 @@ from chatbot.gap_detector import GapDetector
 from crawlers.dynamic_crawler import DynamicCrawler
 from agents.retriever_agent import RetrieverAgent
 from agents.generator_agent import GeneratorAgent
-from agents.gab_detector_agent import GapDetectorAgent
+from agents.gap_detector_agent import GapDetectorAgent
 from agents.updater_agent import UpdaterAgent
 from agents.agent_manager import AgentManager
 from agents.guide_agent import GuideAgent
@@ -87,22 +87,6 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
         response_text = " ".join([choice.message.content for choice in response.choices])
     else:
         response_text = str(response)
-    
-    # # Actualizar creencias del agente guía
-    # guide_agent.update_beliefs(prompt, st.session_state.messages)
-    
-    # # Deliberar y actuar
-    # guide_agent.deliberate()
-    # response = guide_agent.act()
-    
-    # # Si se detecta solicitud de itinerario
-    # if "itinerario" in prompt.lower() or "planear" in prompt.lower():
-    #     preferences = {
-    #         "destino": "Cuba",  # Podrías extraer esto del prompt
-    #         "dias": 5,  # Valor por defecto
-    #         "intereses": prompt
-    #     }
-    #     response = planner_agent.create_itinerary(preferences)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.rerun()

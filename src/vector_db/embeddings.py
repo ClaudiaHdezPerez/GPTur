@@ -1,9 +1,9 @@
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 def get_embeddings():
     """Retorna el modelo de embeddings para documentos en español"""
     return HuggingFaceEmbeddings(
         model_name="hiiamsid/sentence_similarity_spanish_es",
-        model_kwargs={"device": "cpu"},  # Usar GPU si está disponible: "cuda"
+        model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True}
     )
