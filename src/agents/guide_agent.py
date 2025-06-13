@@ -1,5 +1,5 @@
 from .bdi_agent import BDIAgent
-from langchain.retrievers import BM25Retriever
+from langchain_community.retrievers import BM25Retriever
 from crawlers.dynamic_crawler import DynamicCrawler
 import time
 import streamlit as st

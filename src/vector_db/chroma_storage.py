@@ -1,45 +1,81 @@
-from langchain.vectorstores import Chroma
-from langchain.document_loaders import JSONLoader
+from langchain_chroma import Chroma
+from langchain_community.document_loaders import JSONLoader
 from .embeddings import get_embeddings
-from langchain.schema import Document
+from langchain_core.documents import Document
 import os
 import json
 from pathlib import Path
+import chromadb
 
 class VectorStorage:
     def __init__(self):
         self.embeddings = get_embeddings()
         self.collection_name = "cuba_tourism_data"  # Nombre fijo
         self.persist_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "vector_db", "chroma_data")
+            os.path.join(os.path.dirname(__file__), "..", "vector_db", "chroma_data"))
+        
+        # Configuración del cliente Chroma
+        self.client = chromadb.PersistentClient(path=self.persist_dir)
+        
+        # Inicialización de la colección
+        self._initialize_collection()
+        
+        # Inicialización de LangChain Chroma wrapper
+        self.db = Chroma(
+            client=self.client,
+            collection_name=self.collection_name,
+            embedding_function=self.embeddings
         )
         
-        self._initialize_empty_collection()
-
-        self.db = Chroma(
-            collection_name=self.collection_name,
-            embedding_function=self.embeddings,
-            persist_directory=self.persist_dir
-        )
         self._sources_file = "sources.json"
         self.sources = self._load_sources()
 
-    def _initialize_empty_collection(self):
-        """Crea una colección vacía si no existe"""
-        Chroma(
-            collection_name=self.collection_name,
-            embedding_function=self.embeddings,
-            persist_directory=self.persist_dir
-        ).add_documents([Document(page_content="dummy", metadata={})])
-        
+    def _initialize_collection(self):
+        """Inicializa o recupera la colección"""
+        try:
+            # Intenta obtener la colección existente
+            collection = self.client.get_collection(self.collection_name)
+            # Si no hay documentos, agregamos uno dummy
+            if collection.count() == 0:
+                collection.add(
+                    documents=["dummy"],
+                    metadatas=[{}],
+                    ids=["dummy_id"]
+                )
+        except Exception as e:
+            # Si la colección no existe, la creamos
+            print(f"Creando nueva colección: {str(e)}")
+            self.client.create_collection(
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"}
+            )
+
     def update_index(self):
-        loader = JSONLoader(file_path='../data/processed/normalized_data.json')
+        """Actualiza el índice con nuevos documentos"""
+        json_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), 
+            "..", 
+            "data", 
+            "processed", 
+            "normalized_data.json"
+        ))
+        
+        loader = JSONLoader(
+            file_path=json_path,
+            jq_schema='.[] | {page_content: (.page_content // "" | tostring), metadata: .metadata}',
+            text_content=False
+        )
+        
         documents = loader.load()
-        self.db.add_documents(documents)
+        if documents:
+            self.db.add_documents(documents)
+            print(f"Índice actualizado con {len(documents)} documentos")
 
     def get_documents(self):
+        """Obtiene todos los documentos de la colección"""
         try:
-            chroma_data = self.db._collection.get()
+            collection = self.client.get_collection(self.collection_name)
+            chroma_data = collection.get()
             return [
                 Document(
                     page_content=content,
@@ -52,20 +88,23 @@ class VectorStorage:
             return []
         
     def similarity_search(self, query, k=3):
-        """Búsqueda por similitud (para identify_outdated_sources)"""
+        """Búsqueda por similitud"""
         return self.db.similarity_search(query, k=k)
         
     def reload_data(self):
+        """Recarga completamente los datos desde el archivo JSON"""
         try:
             # Eliminar colección existente
-            if self.db._collection:
-                self.db.delete_collection()
-                
-            # Nueva inicialización
+            self.client.delete_collection(self.collection_name)
+            
+            # Crear nueva colección
+            self._initialize_collection()
+            
+            # Recrear el wrapper de LangChain
             self.db = Chroma(
+                client=self.client,
                 collection_name=self.collection_name,
-                embedding_function=self.embeddings,
-                persist_directory=self.persist_dir
+                embedding_function=self.embeddings
             )
             
             # Cargar datos
@@ -89,7 +128,6 @@ class VectorStorage:
             documents = loader.load()
             if documents:
                 self.db.add_documents(documents)
-                self.db.persist()
                 print(f"Se cargaron {len(documents)} documentos")
             else:
                 print("Advertencia: No se cargaron documentos")
