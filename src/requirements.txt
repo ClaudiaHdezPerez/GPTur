@@ -12,3 +12,5 @@ spacy
 rank_bm25
 jq
 sentence-transformers
+matplotlib
+seaborn
