@@ -8,7 +8,9 @@ langchain_huggingface
 chromadb==1.0.9
 apscheduler
 python-dotenv
-spacy
+spacy==3.7.2
 rank_bm25
 jq
 sentence-transformers
+nltk==3.8.1
+scikit-learn>=1.0.2
