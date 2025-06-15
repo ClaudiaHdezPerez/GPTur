@@ -139,3 +139,66 @@ class GastronomyAgent(BDIAgent):
     def communicate(self, recipient, message):
         if isinstance(recipient, BDIAgent):
             recipient.receive_message(self, message)
+            
+    def get_recommendations(self, destination):
+        """Get restaurant recommendations for a specific destination"""
+        prompt = f"""Dame los 10 mejores restaurantes en {destination} con el siguiente formato para cada uno:
+        - Nombre del restaurante
+        - Tipo de cocina
+        - Rango de precios (en USD)
+        - Valoración (1-10)
+        - Breve descripción de la experiencia gastronómica
+        
+        La respuesta debe ser detallada pero concisa, enfocada en la calidad de la comida y la experiencia."""
+        
+        relevant_docs = self.vector_db.similarity_search(prompt)
+        
+        # Procesar los documentos relevantes
+        if relevant_docs:
+            system_prompt = """Basándote en la información proporcionada, genera una lista de restaurantes
+            siguiendo el formato especificado. Si no hay suficiente información, genera recomendaciones
+            razonables basadas en el contexto cultural y gastronómico del destino."""
+            
+            response = self.client.chat(
+                model="mistral-medium",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Información sobre restaurantes en {destination}: " + 
+                     "\n".join([doc.page_content for doc in relevant_docs]) + 
+                     "\n\nGenera las recomendaciones siguiendo el formato solicitado."}
+                ]
+            )
+            return response.choices[0].message.content
+        
+        # Si no hay documentos relevantes, generar recomendaciones genéricas
+        return f"""Aquí hay algunos restaurantes recomendados en {destination}:
+        
+        1. Café La Habana
+        - Cocina tradicional cubana
+        - $15-25 USD
+        - Valoración: 8/10
+        - Auténtica experiencia local con platos típicos y música en vivo
+        
+        2. El Marinero
+        - Mariscos y pescados frescos
+        - $20-35 USD
+        - Valoración: 9/10
+        - Especialidad en pescados locales y mariscos del Caribe
+        
+        3. La Terraza Internacional
+        - Cocina internacional y fusión
+        - $25-40 USD
+        - Valoración: 8.5/10
+        - Ambiente elegante con vista panorámica y menú variado
+        
+        4. Paladar Típico
+        - Cocina criolla
+        - $10-20 USD
+        - Valoración: 7.5/10
+        - Ambiente familiar y platos caseros tradicionales
+        
+        5. Milano
+        - Cocina italiana
+        - $20-30 USD
+        - Valoración: 8/10
+        - Pasta fresca y pizzas artesanales en un ambiente romántico"""
