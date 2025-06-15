@@ -146,3 +146,28 @@ class NightlifeAgent(BDIAgent):
     def communicate(self, recipient, message):
         if isinstance(recipient, BDIAgent):
             recipient.receive_message(self, message)
+            
+    def get_recommendations(self, destination):
+        """Get nightlife recommendations for a specific destination"""
+        # Primero buscar lugares nocturnos
+        nightlife_results = self.search_nightlife(destination)
+        
+        # Preparar el prompt para el LLM
+        system_prompt = f"""Basándote en la siguiente información sobre vida nocturna en {destination},
+        genera una lista de los 5-10 mejores lugares con este formato para cada uno:
+        - Nombre del lugar
+        - Tipo (bar, discoteca, club, teatro, etc.)
+        - Costo promedio (en USD)
+        - Valoración (1-10)
+        - Breve descripción del ambiente y tipo de entretenimiento
+        
+        La respuesta debe ser detallada pero concisa."""
+        
+        response = self.client.chat(
+            model="mistral-medium",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Información sobre lugares nocturnos: {nightlife_results}"}
+            ]
+        )
+        return response.choices[0].message.content
