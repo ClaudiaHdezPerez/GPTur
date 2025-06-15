@@ -9,6 +9,10 @@ from agents.updater_agent import UpdaterAgent
 from agents.agent_manager import AgentManager
 from agents.guide_agent import GuideAgent
 from agents.planner_agent import TravelPlannerAgent
+from agents.gastronomy_agent import GastronomyAgent
+from agents.historic_agent import HistoricAgent
+from agents.lodging_agent import LodgingAgent
+from agents.nightlife_agent import NightlifeAgent
 import time
 
 st.title("Asistente Turístico de Cuba 🇨🇺")
@@ -28,10 +32,26 @@ if not chatbot.vector_db.get_documents():
 
 detector = GapDetector(chatbot.vector_db)
 updater = DynamicCrawler()
+
+# Inicialización de agentes principales
 guide_agent = GuideAgent(chatbot.vector_db)
 planner_agent = TravelPlannerAgent(chatbot.vector_db)
 
-# Inicialización de agentes
+# Inicialización de agentes especializados
+historic_agent = HistoricAgent("HistoricAgent", chatbot.vector_db)
+gastronomy_agent = GastronomyAgent("GastronomyAgent", chatbot.vector_db)
+lodging_agent = LodgingAgent("LodgingAgent", chatbot.vector_db)
+nightlife_agent = NightlifeAgent("NightlifeAgent", chatbot.vector_db)
+
+# Configurar agentes especializados en el planner
+planner_agent.set_specialized_agents(
+    historic=historic_agent,
+    gastronomy=gastronomy_agent,
+    lodging=lodging_agent,
+    nightlife=nightlife_agent
+)
+
+# Inicialización de agentes restantes
 retriever_agent = RetrieverAgent(chatbot.vector_db)
 generator_agent = GeneratorAgent(guide_agent, planner_agent)
 gap_detector_agent = GapDetectorAgent(detector)

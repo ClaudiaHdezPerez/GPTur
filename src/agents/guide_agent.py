@@ -1,3 +1,4 @@
+from nlp.processor import NLPProcessor
 from .bdi_agent import BDIAgent
 from .blackboard import Blackboard
 from .lodging_agent import LodgingAgent
@@ -19,6 +20,7 @@ class GuideAgent(BDIAgent):
         self.retriever = BM25Retriever.from_documents(vector_db.get_documents())
         self.blackboard = Blackboard()
         self.stop_event = Event()
+        self.nlp_processor = NLPProcessor()
         
         # Initialize specialized agents
         self.specialized_agents = {
@@ -72,6 +74,22 @@ class GuideAgent(BDIAgent):
         except Exception as e:
             print(f"Error with {agent.specialization} agent: {str(e)}")
             return None
+            
+    def preprocess_query(self, query: str):
+        """
+        Preprocesses the query using NLP techniques for better understanding and context matching
+        """
+        processed_text = self.nlp_processor.preprocess_text(query)
+        entities = self.nlp_processor.extract_entities(query)
+        keywords = self.nlp_processor.extract_keywords(query)
+        sentiment = self.nlp_processor.analyze_sentiment(query)
+        
+        return {
+            "processed_text": processed_text,
+            "entities": entities,
+            "keywords": keywords,
+            "sentiment": sentiment
+        }
 
     def generate_response(self):
         # Create a unique problem ID for this query
@@ -80,8 +98,14 @@ class GuideAgent(BDIAgent):
         query = self.beliefs["current_query"]
         self.stop_event.clear()
 
-        # Get relevant documents first
-        relevant_docs = self.vector_db.similarity_search(query)
+        # Preprocess the query using NLP
+        query_analysis = self.preprocess_query(query)
+        
+        # Use processed text and keywords for better context matching
+        search_query = f"{query_analysis['processed_text']} {' '.join(query_analysis['keywords'])}"
+        
+        # Get relevant documents using enhanced search query
+        relevant_docs = self.vector_db.similarity_search(search_query)
 
         # Submit tasks to thread pool
         future_to_agent = {
@@ -104,8 +128,7 @@ class GuideAgent(BDIAgent):
 
         # Collect all contributions from the blackboard
         contributions = self.blackboard.read(problem_id)
-        
-        # Generate comprehensive response using all contributions
+          # Generate comprehensive response using all contributions and NLP insights
         context = "\n".join([f"{c['agent']}: {c['contribution']}" for c in contributions])
         if not contributions:
             # Fallback if no agent could provide specific information
@@ -114,7 +137,9 @@ class GuideAgent(BDIAgent):
                 messages=[{
                     "role": "user",
                     "content": f"""Based on these documents about {query}, provide a helpful response:
-                    {[doc.page_content for doc in relevant_docs]}"""
+                    Context documents: {[doc.page_content for doc in relevant_docs]}
+                    Detected entities: {query_analysis['entities']}
+                    User sentiment: {query_analysis['sentiment']['sentiment']}"""
                 }]
             )
         else:
@@ -125,11 +150,17 @@ class GuideAgent(BDIAgent):
                     "content": f"""You are an expert travel guide specializing in Cuban tourism, 
                     with extensive knowledge of the country's culture, history, attractions, and tourist services. 
                     Using this expertise and the following information, provide a comprehensive response:
+                    
                     Question: {query}
+                    Detected entities: {query_analysis['entities']}
+                    User sentiment: {query_analysis['sentiment']['sentiment']}
                     Specialized Information:
                     {context}
                     
-                    Please provide a well-organized response that integrates all relevant information. Make sure to maintain a friendly and knowledgeable tone, highlighting the unique aspects of Cuban tourism and culture in your response."""
+                    Please provide a well-organized response that integrates all relevant information.
+                    Adapt your tone to match the user's sentiment ({query_analysis['sentiment']['sentiment']}).
+                    Make sure to address all mentioned entities and maintain a friendly and knowledgeable tone,
+                    highlighting the unique aspects of Cuban tourism and culture in your response."""
                 }]
             )
         

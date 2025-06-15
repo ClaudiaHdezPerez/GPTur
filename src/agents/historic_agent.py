@@ -153,3 +153,28 @@ class HistoricAgent(BDIAgent):
     def communicate(self, recipient, message):
         if isinstance(recipient, BDIAgent):
             recipient.receive_message(self, message)
+            
+    def get_recommendations(self, destination):
+        """Get historic site recommendations for a specific destination"""
+        # Primero buscar sitios históricos
+        historic_results = self.search_historic_sites(destination)
+        
+        # Preparar el prompt para el LLM
+        system_prompt = f"""Basándote en la siguiente información sobre sitios históricos en {destination},
+        genera una lista de los 5-10 sitios más importantes con este formato para cada uno:
+        - Nombre del sitio
+        - Tipo (museo, monumento, plaza, etc.)
+        - Costo de entrada (en USD)
+        - Valoración (1-10)
+        - Breve descripción de su importancia histórica
+        
+        La respuesta debe ser detallada pero concisa."""
+        
+        response = self.client.chat(
+            model="mistral-medium",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Información sobre sitios históricos: {historic_results}"}
+            ]
+        )
+        return response.choices[0].message.content
