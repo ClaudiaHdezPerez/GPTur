@@ -133,9 +133,80 @@ Un sistema multiagente está constituido por un conjunto de agentes, cada uno co
 GPTur cuenta con dos agentes fundamentales: el guía y el planificador. Existen, además, 
 otros especializados en distintos tópicos: gastronomía, vida nocturna, alojamiento y lugares históricos. Todos ellos 
 
-\subsubsection{Información adicional}\label{sec:info}
-Encabezados de tercer nivel en 10pt negrita.
+\vspace{\baselineskip}
+\subsection{Crawler Automatizado en Dos Fases. Recopilación del \textit{Corpus}}
 
+Se conoce como \textit{crawler} a un software que realiza un proceso automatizado de navegar por la Web de manera sistemática para indexar y recopilar
+información de diferentes sitios web. El sistema implementa un \textit{crawler} en dos fases:
+\begin{itemize}
+  \item  \textit{Fase inicial:} Recopila, almacena y organiza datos en un repositorio vectorial,
+ garantizando una gestión eficiente de los vectores de información.
+  \item \textit{Fase dinámica:} Utiliza automáticamente información externa cuando el sistema
+ detecte respuestas incompletas o desactualizadas.
+\end{itemize}
+
+\subsubsection{Fase Inicial:} En esta fase el \textit{crawler} se configura con los parámetros necesarios, como las URLs objetivo (disponibles en \textit{src /data /sources.json}), 
+criterios de búsqueda y profundidad de rastreo. Utiliza técnicas de \textit{scraping} (extracción de la web) para navegar por sitios web turísticos, identificando y extrayendo 
+información relevante como descripciones de lugares, eventos, alojamientos y actividades. Los datos extraídos son normalizados y almacenados en un formato \textit{.json}, facilitando su posterior análisis y procesamiento.
+
+\subsubsection{Fase Dinámica:} ...
+
+\subsubsection{Recopilación y Construcción del Corpus:} Este proceso consta de cuatro tareas principales:
+
+\begin{itemize}
+    \item \textit{Selección de Fuentes:} Se identificaron y seleccionaron fuentes web relevantes para el turismo, como portales oficiales, blogs y sitios de reseñas.
+    \item \textit{Rastreo y Descarga:} El \textit{crawler} recorre las páginas seleccionadas, descargando el contenido textual y metadatos asociados.
+    \item \textit{Filtrado y Normalización:} Se aplican filtros para eliminar información irrelevante o duplicada, y se normalizan los datos para mantener la coherencia en el corpus.
+    \item \textit{Almacenamiento:} El corpus final se almacena en formato \textit{.json} (disponible en \textit{src /data /processed /normalized\_data.json}).
+\end{itemize}
+
+Este proceso automatizado permite mantener un corpus representativo del dominio turístico, esencial para el tema que aborda el sistema.
+
+\vspace{\baselineskip}
+\subsection{Base de Datos Vectorial y Modelo de Representación del Conocimiento}
+
+El sistema utiliza \textit{ChromaDB} como base de datos vectorial. \textit{ChromaDB} es una solución 
+especializada para el almacenamiento y consulta de vectores de alta dimensión, optimizada para tareas de inteligencia artificial y procesamiento de lenguaje natural.
+
+\begin{itemize}
+    \item \textit{Integración con el Sistema:} La integración se realiza a través del módulo \newline\textit{src /vector\_db /chroma\_storage.py}, que proporciona funciones para insertar, actualizar y consultar vectores en la base de datos.
+    \item \textit{Almacenamiento Eficiente:} \textit{ChromaDB} permite almacenar grandes volúmenes de \textit{embeddings} generados a partir del corpus, manteniendo tiempos de respuesta bajos incluso en consultas complejas.
+    \item \textit{Búsqueda por Similitud:} Utilizando algoritmos de búsqueda aproximada de vecinos más cercanos (ANN), \textit{ChromaDB} facilita la recuperación de fragmentos de información relevantes a partir de consultas vectorizadas, mejorando la precisión y relevancia de las respuestas del sistema.
+    \item \textit{Escalabilidad y Actualización:} \textit{ChromaDB} soporta la actualización dinámica de la base de datos, permitiendo añadir o eliminar vectores conforme el corpus evoluciona, sin afectar el rendimiento general.
+    \item \textit{Persistencia y Seguridad:} Los datos almacenados en \textit{ChromaDB} pueden persistirse en disco, asegurando la integridad y disponibilidad de la información incluso ante reinicios del sistema.
+\end{itemize}
+
+El uso de \textit{ChromaDB} proporciona una infraestructura robusta y escalable para la gestión del conocimiento en forma vectorial, facilitando la integración de capacidades avanzadas de recuperación semántica y razonamiento en el sistema.
+
+\subsubsection{Modelo de Representación del Conocimiento:}
+
+El sistema emplea un modelo de representación del conocimiento basado en \textit{embeddings} semánticos, lo que permite capturar relaciones y similitudes entre conceptos turísticos. Las principales características son:
+
+\begin{itemize}
+    \item \textit{Representación Distribuida:} Cada entidad o fragmento de información se representa como un vector en un espacio de alta dimensión, facilitando la comparación y agrupación de conceptos similares.
+    \item \textit{Recuperación Semántica:} Las consultas del usuario se transforman en vectores y se comparan con los almacenados en la base de datos, recuperando la información más relevante según la similitud semántica. Todo 
+    eso gracias al método \textit{similarity\_search} de \textit{Chroma}.
+\end{itemize}
+
+Este enfoque permite una gestión eficiente y flexible del conocimiento, adaptándose a la naturaleza dinámica y heterogénea de la información turística.
+
+\vspace{\baselineskip}
+\subsection{Procesamiento de Lenguaje Natural (NLP)}
+
+El sistema GPTur incorpora un módulo de procesamiento de lenguaje natural (NLP) para analizar y comprender las consultas de los usuarios, así como para procesar y organizar la información turística recopilada. Las principales tareas de 
+NLP implementadas son:
+
+\begin{itemize}
+    \item \textit{Preprocesamiento de texto:} Se realiza limpieza, normalización y lematización de las consultas y documentos, eliminando palabras vacías y signos de puntuación, utilizando el modelo \textit{es\_core\_news\_md} de \textit{spacy}.
+    \item \textit{Extracción de entidades:} Se identifican entidades nombradas relevantes (como ciudades, atracciones y organizaciones) en las consultas y documentos, facilitando la recuperación precisa de información.
+    \item \textit{Análisis de sentimiento:} Se implementa un análisis de sentimiento simple para detectar la polaridad de las consultas, lo que puede influir en la generación de respuestas más adecuadas.
+    \item \textit{Extracción de palabras clave:} Se extraen los términos más relevantes de cada consulta o documento, mejorando la indexación y recuperación.
+    \item \textit{Fragmentación de texto:} Los textos largos se dividen en fragmentos coherentes para optimizar el procesamiento y la generación de embeddings.
+\end{itemize}
+
+Estas tareas permiten que el sistema interprete correctamente las necesidades del usuario y recupere la información más relevante, integrando el procesamiento de lenguaje natural en la lógica central de los agentes inteligentes.
+
+\vspace{\baselineskip}
 \section{Validación y Experimentación}
 
 Esta sección fue un elemento esencial en la etapa de desarrollo y, en muchos casos, influyó en la toma de decisiones. Se realizaron varios experimentos, que incluyen valoraciones de la respuesta del sistema y evaluación de los algoritmos de metaheurísticas.
@@ -155,7 +226,7 @@ se creó una cosulta para un modelo de lenguaje pidiendo una evaluación entre 0
 Después de obtener los resultados de la muestra, se hacía necesario evaluar muestras mucho más grandes, pero eso requería demasiado cómputo, así que como alternativa se utilizó la técnica conocida como \textit{bootstrapping}, pudiendo estudiar muestras de tamaño 300 con 1000 simulaciones. A continuación se muestran los resultados obtenidos 
 en las distintas etapas.
 
-\subsubsection{Sistema con Agentes Guía y Planificador Solamente}
+\subsubsection{Sistema con Agentes Guía y Planificador Solamente:}
 
 La Tabla \tabref{tab:boot_results_1} resume las métricas clave obtenidas:
 
@@ -194,7 +265,7 @@ La Figura {\figref{fig:boot_dist_1}} muestra la distribución bootstrap de la pu
 30 preguntas iniciales.
 \end{remark}
 
-\subsubsection{Sistema con Agentes Especializados }
+\subsubsection{Sistema con Agentes Especializados:}
 
 La Tabla \tabref{tab:boot_results_2} resume las métricas clave obtenidas:
 
