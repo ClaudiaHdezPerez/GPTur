@@ -16,7 +16,33 @@ from threading import Event
 class GuideAgent(BDIAgent):
     def __init__(self, vector_db):
         super().__init__("GuideBot", vector_db)
-        self.desires = ["answer_accurately", "keep_data_updated", "coordinate_agents"]
+        
+        # Definir deseos base del agente
+        self.desires = [
+            "responder_consultas",
+            "mantener_datos_actualizados",
+            "coordinar_agentes"
+        ]
+        
+        # Definir planes disponibles
+        self.plans = {
+            "responder_consultas": {
+                "objetivo": "generar_respuesta",
+                "precondiciones": ["tiene_consulta", "datos_disponibles"],
+                "acciones": ["generar_respuesta"]
+            },
+            "mantener_datos_actualizados": {
+                "objetivo": "actualizar_datos",
+                "precondiciones": ["datos_obsoletos"],
+                "acciones": ["ejecutar_crawler"]
+            }
+            # "coordinar_agentes": {
+            #     "objetivo": "coordinar_respuesta",
+            #     "precondiciones": ["tiene_consulta", "agentes_disponibles"],
+            #     "acciones": ["distribuir_tareas", "recolectar_respuestas", "consolidar_informacion"]
+            # }
+        }
+        
         self.retriever = BM25Retriever.from_documents(vector_db.get_documents())
         self.blackboard = Blackboard()
         self.stop_event = Event()
@@ -30,19 +56,56 @@ class GuideAgent(BDIAgent):
             "gastronomy": GastronomyAgent("GastronomyBot", vector_db)
         }
         self.thread_pool = ThreadPoolExecutor(max_workers=len(self.specialized_agents))
-    
-    def deliberate(self):
-        if (self.beliefs["data_freshness"] < 24):
-            self.intentions.append("trigger_crawler")
-        if self.beliefs["current_query"]:
-            self.intentions.append("generate_response")
-    
-    def act(self):
-        for intention in self.intentions:
-            if intention == "trigger_crawler":
-                self.trigger_crawler()
-            elif intention == "generate_response":
-                return self.generate_response()
+
+    def _is_plan_relevant(self, plan) -> bool:
+        """Verifica si un plan es relevante para el estado actual"""
+        if plan["objetivo"] == "generar_respuesta":
+            return "current_query" in self.beliefs
+        elif plan["objetivo"] == "actualizar_datos":
+            return self.beliefs.get("data_freshness", 0) < 24
+        elif plan["objetivo"] == "coordinar_respuesta":
+            return "current_query" in self.beliefs and self.specialized_agents
+        return False
+
+    def _is_achievable(self, plan) -> bool:
+        """Verifica si un plan es alcanzable según las precondiciones"""
+        for precondition in plan["precondiciones"]:
+            if not self._check_precondition(precondition):
+                return False
+        return True
+
+    def _check_precondition(self, precondition) -> bool:
+        """Verifica una precondición específica"""
+        if precondition == "tiene_consulta":
+            return "current_query" in self.beliefs
+        elif precondition == "datos_disponibles":
+            return bool(self.vector_db.get_documents())
+        elif precondition == "datos_obsoletos":
+            return self.beliefs.get("data_freshness", 0) < 24
+        elif precondition == "agentes_disponibles":
+            return bool(self.specialized_agents)
+        return False
+
+    def _is_compatible(self, plan) -> bool:
+        """Verifica si un plan es compatible con las intenciones actuales"""
+        # En este caso, todos los planes son compatibles entre sí
+        return True
+
+    def _get_next_action(self, intention) -> str:
+        """Determina la siguiente acción para una intención"""
+        if not intention.get("acciones"):
+            return None
+            
+        # Retornar la primera acción disponible
+        return intention["acciones"][0]
+
+    def _perform_action(self, action):
+        """Ejecuta una acción específica"""
+        if action == "generar_respuesta":
+            return self.generate_response()
+        elif action == "ejecutar_crawler":
+            return self.trigger_crawler()
+        return None
     
     def trigger_crawler(self):
         crawler = DynamicCrawler()
@@ -59,16 +122,12 @@ class GuideAgent(BDIAgent):
         """Process query for a specific agent in a thread-safe manner"""
         if self.stop_event.is_set():
             return None
+        
+        print(relevant_docs)
+        percept = (query, relevant_docs)
             
         try:
-            if "lodging" in agent.specialization:
-                results = agent.search_accommodations(query, relevant_docs)
-            elif "historic" in agent.specialization:
-                results = agent.search_historic_sites(query, relevant_docs)
-            elif "nightlife" in agent.specialization:
-                results = agent.search_nightlife(query, relevant_docs)
-            elif "gastronomy" in agent.specialization:
-                results = agent.search_restaurants(query, relevant_docs)
+            results = agent.action(percept)
             agent.communicate(self, results)
             return results
         except Exception as e:

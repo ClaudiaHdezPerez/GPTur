@@ -6,6 +6,21 @@ class GeneratorAgent(BaseAgent):
         self.guide_agent = guide_agent
         self.planner_agent = planner_agent
 
+    def _convert_docs_to_string(self, documents):
+        # Concatenate page_content from all documents
+        combined_content = ""
+        for doc in documents:
+            try:
+                # Parse the page_content which is a JSON string
+                content_json = eval(doc.page_content)
+                page_content = content_json.get("page_content", "")
+                if page_content:
+                    combined_content += page_content + " "
+            except:
+                # If there's an error parsing, skip this document
+                continue
+        return combined_content.strip()
+
     def can_handle(self, task):
         return task.get("type") == "generate"
 
@@ -33,24 +48,40 @@ class GeneratorAgent(BaseAgent):
                 "intereses": prompt
             }
         except:
-            return {
-                "dias": 5,
+            return {                "dias": 5,
                 "destino": "Cuba", 
-                "presupuesto": 50,
+                "presupuesto": 300,
                 "intereses": prompt
             }
-
+            
     def handle(self, task, context):
         prompt = task.get("prompt")
-        self.guide_agent.update_beliefs(prompt, context)
-    
-        # Deliberar y actuar
-        self.guide_agent.deliberate()
-        response = self.guide_agent.act()
         
-        # Si se detecta solicitud de itinerario
-        if "itinerario" in prompt.lower() or "planear" in prompt.lower():
+        # Convert context documents to string if context is a list of documents
+        context_text = self._convert_docs_to_string(context) if isinstance(context, list) else str(context)
+        
+        # Detect user intention with MistralAI client
+        system_prompt = """Analiza la intención del usuario y clasifícala en una de estas categorías:
+        - PLANNING: Si el usuario quiere planear un viaje, crear un itinerario o programar actividades
+        - INFO: Si el usuario busca información general, recomendaciones o respuestas sobre lugares
+        Responde únicamente con la categoría: PLANNING o INFO"""
+        
+        intent_response = self.guide_agent.client.chat(
+            model="mistral-small",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        intent = intent_response.choices[0].message.content.strip()
+        
+        print(f"Detected intent: {intent}")
+        print(f"Context for handling: {context_text}")
+        
+        # If the intention is planner, use the planner agent
+        if intent == "PLANNING":
             preferences = self._extract_travel_params(prompt)
-            response = self.planner_agent.create_itinerary(preferences)
-
-        return response
+            return self.planner_agent.create_itinerary(preferences)
+        
+        # By default, use the guide agent
+        return self.guide_agent.action((prompt, context_text))

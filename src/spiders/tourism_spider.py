@@ -12,7 +12,10 @@ class CubaTourismSpider(CrawlSpider):
     CITIES = [
         'habana', 'santiago', 'varadero', 'trinidad', 'cienfuegos', 
         'viñales', 'vinales', 'holguin', 'holguín', 'cayo coco',
-        'guardalavaca', 'baracoa', 'santa clara', 'matanzas', 'pinar del río'
+        'guardalavaca', 'baracoa', 'santa clara', 'matanzas', 'pinar del río',
+        'artemisa', 'mayabeque', 'las tunas', 'camagüey', 'sancti spiritus', 
+        'ciego de avila', 'granma', 'sierra maestra', 'guantanamo', 'isla de la juventud',
+        'cayo largo', 'cayo santa maria', 'cayo guillermo'
     ]
     
     custom_settings = {
@@ -24,9 +27,9 @@ class CubaTourismSpider(CrawlSpider):
             }
         },
         'ROBOTSTXT_OBEY': True,
-        'DOWNLOAD_DELAY': 2,
+        'DOWNLOAD_DELAY': 3,
         'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'DEPTH_LIMIT': 3  # Limita la profundidad del crawling
+        'DEPTH_LIMIT': 4  # Limita la profundidad del crawling
     }
 
     def __init__(self, *args, **kwargs):
@@ -44,10 +47,13 @@ class CubaTourismSpider(CrawlSpider):
     rules = (
         Rule(
             LinkExtractor(
-                allow=(r'/(ciudad|destino|lugar|turismo|tourist|destination|city)/.*cuba.*',
-                       r'/cuba/.*(ciudad|destino|lugar|turismo).*',
-                       r'/(habana|santiago|varadero|trinidad|cienfuegos|vinales|matanzas|isla|cayo|santa clara|holguin|sierra maestra).*',
-                       r'/hotel/', r'/vuelos/', r'/forum/', r'/review/')
+                allow=(
+                    r'/(ciudad|destino|lugar|turismo|tourist|destination|city)/.*cuba.*',
+                    r'/cuba/.*(ciudad|destino|lugar|turismo).*',
+                    r'/(habana|santiago|varadero|trinidad|cienfuegos|vinales|matanzas|isla|cayo|santa clara|holguin|sierra maestra).*',
+                    r'/hotel/', r'/vuelos/', r'/forum/', r'/review/',
+                    r'/(playa|excursion|museo|cultura|restaurante|atraccion|guia|travel)/'  # Nuevos términos
+                )
             ),
             callback='parse',
             follow=True
@@ -69,7 +75,9 @@ class CubaTourismSpider(CrawlSpider):
             'article p::text',
             '.content p::text',
             '.description::text',
-            '#main-content p::text'
+            '#main-content p::text',
+            'div.entry-content p::text',  # Común en blogs
+            'section p::text'             # Más genérico
         ]
         
         content = []
@@ -87,7 +95,7 @@ class CubaTourismSpider(CrawlSpider):
         
         if not content or not city:
             return None
-            
+        
         # Extraer atracciones específicas
         attractions = []
         attraction_selectors = [

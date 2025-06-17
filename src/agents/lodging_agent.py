@@ -6,11 +6,39 @@ class LodgingAgent(BDIAgent):
         super().__init__(name, vector_db)
         self.specialization = "lodging"
         self.blackboard = Blackboard()
+        
+        # Inicializar creencias específicas de alojamiento
         self.beliefs = {
             "accommodation_types": ["hotel", "hostal", "casa_particular", "resort"],
             "locations": {},
             "amenities": [],
             "price_ranges": ["economic", "moderate", "luxury"]
+        }
+        
+        # Definir deseos del agente de alojamiento
+        self.desires = [
+            "buscar_alojamientos",
+            "recomendar_hospedaje",
+            "analizar_comodidades"
+        ]
+        
+        # Definir planes disponibles
+        self.plans = {
+            "buscar_alojamientos": {
+                "objetivo": "encontrar_opciones",
+                "precondiciones": ["tiene_ubicacion"],
+                "acciones": ["buscar_en_db", "clasificar_resultados", "formatear_respuesta"]
+            },
+            "recomendar_hospedaje": {
+                "objetivo": "dar_recomendaciones",
+                "precondiciones": ["tiene_ubicacion", "tiene_preferencias"],
+                "acciones": ["analizar_requisitos", "filtrar_opciones", "generar_recomendaciones"]
+            },
+            "analizar_comodidades": {
+                "objetivo": "evaluar_instalaciones",
+                "precondiciones": ["tiene_alojamiento"],
+                "acciones": ["listar_amenities", "evaluar_calidad", "generar_informe"]
+            }
         }
 
     def search_accommodations(self, query, relevant_docs=None):
@@ -132,6 +160,82 @@ class LodgingAgent(BDIAgent):
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Información sobre alojamientos: {lodging_results}"}
+            ]
+        )
+        return response.choices[0].message.content
+    
+    def _is_plan_relevant(self, plan) -> bool:
+        """Verifica si un plan es relevante para el estado actual"""
+        if plan["objetivo"] == "encontrar_opciones":
+            return "destination" in self.beliefs
+        elif plan["objetivo"] == "dar_recomendaciones":
+            return "current_query" in self.beliefs and "destination" in self.beliefs
+        elif plan["objetivo"] == "evaluar_instalaciones":
+            return "selected_accommodation" in self.beliefs
+        return False
+
+    def _check_precondition(self, precondition) -> bool:
+        """Verifica una precondición específica"""
+        if precondition == "tiene_ubicacion":
+            return "destination" in self.beliefs
+        elif precondition == "tiene_preferencias":
+            return bool(self.beliefs.get("preferences", {}))
+        elif precondition == "tiene_alojamiento":
+            return "selected_accommodation" in self.beliefs
+        return False
+
+    def _is_achievable(self, plan) -> bool:
+        """Verifica si un plan es alcanzable según las precondiciones"""
+        return all(self._check_precondition(pre) for pre in plan["precondiciones"])
+
+    def _is_compatible(self, plan) -> bool:
+        """Verifica si un plan es compatible con las intenciones actuales"""
+        # Todos los planes de alojamiento son compatibles entre sí
+        return True
+
+    def _get_next_action(self, intention) -> str:
+        """Determina la siguiente acción para una intención"""
+        if not intention.get("acciones"):
+            return None
+        return intention["acciones"][0]
+
+    def _perform_action(self, action):
+        """Ejecuta una acción específica"""
+        if action == "buscar_en_db":
+            return self.search_accommodations(self.beliefs["destination"])
+        elif action == "generar_recomendaciones":
+            preferences = self.beliefs.get("preferences", {})
+            return self.get_accommodation_suggestion(
+                self.beliefs["destination"],
+                preferences.get("preferences", []),
+                preferences.get("budget", "moderate")
+            )
+        elif action == "listar_amenities":
+            return self._analyze_amenities(self.beliefs["selected_accommodation"])
+        return None
+
+    def get_recommendations(self, destination):
+        """Obtiene recomendaciones usando el ciclo BDI"""
+        # Crear percepción con el destino
+        percept = {"destination": destination}
+        
+        # Ejecutar ciclo BDI y obtener acción
+        return self.action(percept)
+
+    def _analyze_amenities(self, accommodation):
+        """Analiza las comodidades de un alojamiento"""
+        amenities_prompt = f"""Analiza las siguientes características del alojamiento {accommodation}:
+        - Instalaciones principales
+        - Servicios disponibles
+        - Comodidades adicionales
+        - Calidad general
+        Genera un informe conciso pero completo."""
+        
+        response = self.client.chat(
+            model="mistral-medium",
+            messages=[
+                {"role": "system", "content": amenities_prompt},
+                {"role": "user", "content": str(accommodation)}
             ]
         )
         return response.choices[0].message.content

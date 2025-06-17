@@ -7,6 +7,8 @@ class HistoricAgent(BDIAgent):
         super().__init__(name, vector_db)
         self.specialization = "historic"
         self.blackboard = Blackboard()
+        
+        # Inicializar creencias específicas de sitios históricos
         self.beliefs = {
             "historic_sites": {},
             "cultural_events": {},
@@ -24,6 +26,38 @@ class HistoricAgent(BDIAgent):
                 "historic_building",
                 "cultural_center"
             ]
+        }
+        
+        # Definir deseos del agente histórico
+        self.desires = [
+            "buscar_sitios",
+            "recomendar_lugares",
+            "informar_eventos",
+            "detallar_historia"
+        ]
+        
+        # Definir planes disponibles
+        self.plans = {
+            "buscar_sitios": {
+                "objetivo": "encontrar_sitios",
+                "precondiciones": ["tiene_ubicacion"],
+                "acciones": ["buscar_en_db", "clasificar_sitios", "formatear_respuesta"]
+            },
+            "recomendar_lugares": {
+                "objetivo": "dar_recomendaciones",
+                "precondiciones": ["tiene_ubicacion", "tiene_preferencias"],
+                "acciones": ["analizar_intereses", "filtrar_sitios", "generar_recomendaciones"]
+            },
+            "informar_eventos": {
+                "objetivo": "mostrar_eventos",
+                "precondiciones": ["tiene_ubicacion", "tiene_fecha"],
+                "acciones": ["buscar_eventos", "filtrar_por_fecha", "formatear_eventos"]
+            },
+            "detallar_historia": {
+                "objetivo": "explicar_historia",
+                "precondiciones": ["tiene_sitio"],
+                "acciones": ["buscar_detalles", "compilar_historia", "generar_narracion"]
+            }
         }
 
     def search_historic_sites(self, query, relevant_docs=None):
@@ -175,6 +209,91 @@ class HistoricAgent(BDIAgent):
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Información sobre sitios históricos: {historic_results}"}
+            ]
+        )
+        return response.choices[0].message.content
+
+    def _is_plan_relevant(self, plan) -> bool:
+        """Verifica si un plan es relevante para el estado actual"""
+        if plan["objetivo"] == "encontrar_sitios":
+            return "destination" in self.beliefs
+        elif plan["objetivo"] == "dar_recomendaciones":
+            return "current_query" in self.beliefs and "destination" in self.beliefs
+        elif plan["objetivo"] == "mostrar_eventos":
+            return "destination" in self.beliefs and "date_range" in self.beliefs
+        elif plan["objetivo"] == "explicar_historia":
+            return "site_name" in self.beliefs and "destination" in self.beliefs
+        return False
+
+    def _check_precondition(self, precondition) -> bool:
+        """Verifica una precondición específica"""
+        if precondition == "tiene_ubicacion":
+            return "destination" in self.beliefs
+        elif precondition == "tiene_preferencias":
+            return bool(self.beliefs.get("preferences", {}))
+        elif precondition == "tiene_fecha":
+            return "date_range" in self.beliefs
+        elif precondition == "tiene_sitio":
+            return "site_name" in self.beliefs
+        return False
+
+    def _is_achievable(self, plan) -> bool:
+        """Verifica si un plan es alcanzable según las precondiciones"""
+        return all(self._check_precondition(pre) for pre in plan["precondiciones"])
+
+    def _is_compatible(self, plan) -> bool:
+        """Verifica si un plan es compatible con las intenciones actuales"""
+        return True
+
+    def _get_next_action(self, intention) -> str:
+        """Determina la siguiente acción para una intención"""
+        if not intention.get("acciones"):
+            return None
+        return intention["acciones"][0]
+
+    def _perform_action(self, action):
+        """Ejecuta una acción específica"""
+        if action == "buscar_en_db":
+            return self.search_historic_sites(self.beliefs["destination"])
+        elif action == "generar_recomendaciones":
+            return self.get_site_details(
+                self.beliefs["site_name"],
+                self.beliefs["destination"]
+            )
+        elif action == "buscar_eventos":
+            return self.search_cultural_events(
+                self.beliefs["destination"],
+                self.beliefs.get("date_range")
+            )
+        elif action == "compilar_historia":
+            return self._compile_historic_details(
+                self.beliefs["site_name"],
+                self.beliefs["destination"]
+            )
+        return None
+
+    def get_recommendations(self, destination):
+        """Obtiene recomendaciones usando el ciclo BDI"""
+        # Crear percepción con el destino
+        percept = {"destination": destination}
+        
+        # Ejecutar ciclo BDI y obtener acción
+        return self.action(percept)
+
+    def _compile_historic_details(self, site_name, location):
+        """Compila detalles históricos de un sitio"""
+        details_prompt = f"""Proporciona información histórica detallada sobre {site_name} en {location}, incluyendo:
+        - Origen y fecha de construcción
+        - Eventos históricos importantes
+        - Valor cultural y patrimonial
+        - Estado actual y relevancia turística
+        La respuesta debe ser detallada pero concisa."""
+        
+        response = self.client.chat(
+            model="mistral-medium",
+            messages=[
+                {"role": "system", "content": details_prompt},
+                {"role": "user", "content": f"Buscar información histórica de {site_name}"}
             ]
         )
         return response.choices[0].message.content
