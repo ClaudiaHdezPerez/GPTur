@@ -10,7 +10,7 @@ import chromadb
 class VectorStorage:
     def __init__(self):
         self.embeddings = get_embeddings()
-        self.collection_name = "cuba_tourism_data"  # Nombre fijo
+        self.collection_name = "cuba_tourism"  # Nombre fijo
         self.persist_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "vector_db", "chroma_data"))
         
@@ -32,24 +32,30 @@ class VectorStorage:
 
     def _initialize_collection(self):
         """Inicializa o recupera la colección"""
-        try:
-            # Intenta obtener la colección existente
+        existing_collections = self.client.list_collections()
+        collection_exists = any(x.name == self.collection_name for x in existing_collections)
+        
+        if collection_exists:
             collection = self.client.get_collection(self.collection_name)
             # Si no hay documentos, agregamos uno dummy
             if collection.count() == 0:
+                dummy_metadata = {
+                    "url": "dummy_url",
+                    "city": "dummy_city",
+                    "timestamp": "dummy_timestamp",
+                    "source": "dummy_source"
+                }
                 collection.add(
                     documents=["dummy"],
-                    metadatas=[{}],
+                    metadatas=[dummy_metadata],
                     ids=["dummy_id"]
                 )
-        except Exception as e:
-            # Si la colección no existe, la creamos
-            print(f"Creando nueva colección: {str(e)}")
-            if (not any([x for x in self.client.list_collections() if x.name == self.collection_name])):
-                self.client.create_collection(
-                    name=self.collection_name,
-                    metadata={"hnsw:space": "cosine"}
-                )
+        else:
+            print(f"Creando nueva colección: {self.collection_name}")
+            self.client.create_collection(
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"}
+            )
 
     def update_index(self):
         """Actualiza el índice con nuevos documentos"""

@@ -27,9 +27,9 @@ st.set_page_config(
 st.title("GPTur - Asistente Turístico de Cuba")
 
 # Inicialización de componentes
-# if not st.session_state.chatbot:
-if "messages" not in st.session_state:
+if "chatbot" not in st.session_state:
     st.session_state.chatbot = CubaChatbot()
+    
 if not st.session_state.chatbot.vector_db.get_documents():
     print("\nCargando datos iniciales...\n")
     try:
@@ -108,7 +108,7 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
             sources = detector.identify_outdated_sources(prompt)
             update_task = {"type": "update_sources", "sources": sources}
             manager.dispatch(update_task, context)
-            st.session_state.chatbot.vector_db.reload_data()
+            st.session_state.chatbot.vector_db.update_index()
             # Regenerar respuesta
             response = manager.dispatch(generate_task, context)
             status.update(label="✅ Actualización completada", state="complete")
