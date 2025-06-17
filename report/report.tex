@@ -209,7 +209,46 @@ Estas tareas permiten que el sistema interprete correctamente las necesidades de
 \vspace{\baselineskip}
 \section{Validación y Experimentación}
 
+%...
+
+
+
+
+%...
+\vspace{\baselineskip}
+
+
+
 Esta sección fue un elemento esencial en la etapa de desarrollo y, en muchos casos, influyó en la toma de decisiones. Se realizaron varios experimentos, que incluyen valoraciones de la respuesta del sistema y evaluación de los algoritmos de metaheurísticas.
+\subsection{Procedimiento de Bootstrapping y Número de Iteraciones}
+
+En el procedimiento de bootstrapping se generan, con reemplazamiento, $B$ muestras de tamaño $n$ a partir de la muestra original, calculándose de cada una el estimador $\bar{X}^*$.
+El error estándar asociado a la distribución de estos estimadores se expresa como:
+\begin{equation}
+\text{SE}_B = \frac{\sigma}{\sqrt{B}}.
+\end{equation}
+Inicialmente se había planteado un umbral del 5\% de $\sigma$ para $\text{SE}_B$ lo que implicaba:
+\begin{equation}
+\text{SE}_B \leq 0.05\,\sigma.
+\end{equation}
+Despejando en la inecuación se obtiene
+
+
+\[
+\frac{\sigma}{\sqrt{B}} \leq 0.05\,\sigma \quad \Longrightarrow \quad \sqrt{B} \geq 20 \quad \Longrightarrow \quad B \geq 400.
+\]
+
+
+En la práctica se utiliza $B=1000$ para obtener una estabilidad robusta, ya que:
+
+
+\[
+\frac{1}{\sqrt{1000}} \approx 0.0316,
+\]
+
+
+lo que implica que $\text{SE}_B\approx 0.0316\,\sigma$, cumpliéndose de forma estricta la condición.
+
 \vspace{\baselineskip}
 \subsection{Respuesta del Sistema}
 
@@ -306,5 +345,7 @@ La Figura {\figref{fig:boot_dist_2}} muestra la distribución bootstrap de la pu
 
 En resumen, se puede observar que al añadir agentes especializados al sistema, mejoró la respuesta del modelo, lo cual demostró 
 que la decisión tomada estuvo acertada.
+
+\section{Conclusiones}
 
 \end{document}
