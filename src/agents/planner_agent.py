@@ -2,6 +2,7 @@ from .bdi_agent import BDIAgent
 import math
 import random
 import re
+import time
 from dataclasses import dataclass
 from typing import List, Dict, Any, Union
 
@@ -17,10 +18,33 @@ class Place:
 class TravelPlannerAgent(BDIAgent):
     def __init__(self, vector_db):
         super().__init__("PlanificadorViajes", vector_db)
+        
+        # Definir deseos base del agente
         self.desires = [
             "crear_itinerario",
-            "optimizar_recursos"
+            "optimizar_recursos",
+            "balancear_actividades"
         ]
+        
+        # Definir planes disponibles
+        self.plans = {
+            "crear_itinerario": {
+                "objetivo": "Crear un itinerario completo",
+                "precondiciones": ["destino_valido", "dias_validos", "presupuesto_valido"],
+                "acciones": ["obtener_lugares", "optimizar_itinerario", "formatear_respuesta"]
+            },
+            "optimizar_recursos": {
+                "objetivo": "Optimizar uso de recursos",
+                "precondiciones": ["tiene_presupuesto", "tiene_restricciones_tiempo"],
+                "acciones": ["analizar_costos", "ajustar_tiempos", "balancear_presupuesto"]
+            },
+            "balancear_actividades": {
+                "objetivo": "Balancear tipos de actividades",
+                "precondiciones": ["tiene_actividades"],
+                "acciones": ["clasificar_actividades", "distribuir_equilibradamente"]
+            }
+        }
+        
         self.historic_agent = None
         self.gastronomy_agent = None
         self.lodging_agent = None
@@ -126,11 +150,12 @@ class TravelPlannerAgent(BDIAgent):
             # Valores por defecto si hay error
             return [
                 {"name": "Lugar Genérico", "cost": 25.0, "rating": 7.0, "description": "Lugar típico"}
-            ]
-
+            ]    
+            
     def simulated_annealing_csp(self, days: int, places: Dict[str, List[Place]], 
-                budget_per_day: float, destination: str, max_iter: int = 1000):
-    
+                budget_per_day: float, destination: str, max_iter: int = 1000,
+                max_time: float = 120):  # 120 segundos = 2 minutos
+
         def generate_initial_solution():
             solution = []
             for _ in range(days):
@@ -182,9 +207,13 @@ class TravelPlannerAgent(BDIAgent):
             return True
 
         # Inicialización
+        print("Iniciando recocido simulado para planificar viaje...")
+        start_time = time.time()  # Registrar tiempo de inicio
         current_sol = generate_initial_solution()
         while not is_valid_solution(current_sol):
             current_sol = generate_initial_solution()
+            if time.time() - start_time > max_time:  # Si excede el tiempo máximo
+                return current_sol  # Devolver la mejor solución encontrada hasta ahora
             
         best_sol = current_sol.copy()
         best_rating = calculate_total_rating(current_sol)
@@ -196,6 +225,10 @@ class TravelPlannerAgent(BDIAgent):
         
         while T > T_min:
             for _ in range(max_iter):
+                # Verificar si se excedió el tiempo límite
+                if time.time() - start_time > max_time:
+                    return best_sol  # Devolver la mejor solución encontrada hasta ahora
+                    
                 neighbor_sol = generate_neighbor(current_sol)
                 if not is_valid_solution(neighbor_sol):
                     continue
@@ -260,3 +293,49 @@ class TravelPlannerAgent(BDIAgent):
         )
         
         return self._format_itinerary(solution)
+
+    def _is_achievable(self, plan) -> bool:
+        """Verifica si un plan es alcanzable según las precondiciones"""
+        for precondition in plan["precondiciones"]:
+            if precondition == "destino_valido":
+                if "destino" not in self.beliefs or not self.beliefs["destino"]:
+                    return False
+            elif precondition == "dias_validos":
+                if "dias" not in self.beliefs or self.beliefs["dias"] <= 0:
+                    return False
+            elif precondition == "presupuesto_valido":
+                if "presupuesto" not in self.beliefs or self.beliefs["presupuesto"] <= 0:
+                    return False
+        return True
+        
+    def _evaluate_intention(self, option) -> bool:
+        """Evalúa si una opción debe convertirse en intención"""
+        # Evaluar basado en el estado actual y recursos disponibles
+        if option["objetivo"] == "crear_itinerario":
+            return "current_query" in self.beliefs
+        elif option["objetivo"] == "optimizar_recursos":
+            return "presupuesto" in self.beliefs
+        return True
+        
+    def _get_next_action(self, intention):
+        """Obtiene la siguiente acción para una intención"""
+        if intention["objetivo"] == "crear_itinerario":
+            return self._get_itinerary_action()
+        elif intention["objetivo"] == "optimizar_recursos":
+            return self._get_optimization_action()
+        return None
+        
+    def _perform_action(self, action):
+        """Ejecuta una acción específica"""
+        if action == "obtener_lugares":
+            return self._get_places_from_agents(self.beliefs["destino"])
+        elif action == "optimizar_itinerario":
+            return self.simulated_annealing_csp(
+                self.beliefs["dias"],
+                self.beliefs["lugares"],
+                self.beliefs["presupuesto"],
+                self.beliefs["destino"]
+            )
+        elif action == "formatear_respuesta":
+            return self._format_itinerary(self.beliefs["solucion"])
+        return None

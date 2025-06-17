@@ -14,34 +14,45 @@ from agents.historic_agent import HistoricAgent
 from agents.lodging_agent import LodgingAgent
 from agents.nightlife_agent import NightlifeAgent
 import time
+import os
+from pathlib import Path
 
-st.title("Asistente Turístico de Cuba 🇨🇺")
+# Configuración de la página
+logo_path = Path(__file__).parent / "logo" / "GPTur.png"
+st.set_page_config(
+    page_title="GPTur",
+    page_icon=str(logo_path)
+)
+
+st.title("GPTur - Asistente Turístico de Cuba")
 
 # Inicialización de componentes
-chatbot = CubaChatbot()
-if not chatbot.vector_db.get_documents():
+# if not st.session_state.chatbot:
+if "messages" not in st.session_state:
+    st.session_state.chatbot = CubaChatbot()
+if not st.session_state.chatbot.vector_db.get_documents():
     print("\nCargando datos iniciales...\n")
     try:
-        chatbot.vector_db.reload_data()
-        if not chatbot.vector_db.get_documents():
+        st.session_state.chatbot.vector_db.reload_data()
+        if not st.session_state.chatbot.vector_db.get_documents():
             st.error("Error: No se pudieron cargar los datos iniciales")
             st.stop()
     except Exception as e:
         st.error(f"Error crítico: {str(e)}")
         st.stop()
 
-detector = GapDetector(chatbot.vector_db)
+detector = GapDetector(st.session_state.chatbot.vector_db)
 updater = DynamicCrawler()
 
 # Inicialización de agentes principales
-guide_agent = GuideAgent(chatbot.vector_db)
-planner_agent = TravelPlannerAgent(chatbot.vector_db)
+guide_agent = GuideAgent(st.session_state.chatbot.vector_db)
+planner_agent = TravelPlannerAgent(st.session_state.chatbot.vector_db)
 
 # Inicialización de agentes especializados
-historic_agent = HistoricAgent("HistoricAgent", chatbot.vector_db)
-gastronomy_agent = GastronomyAgent("GastronomyAgent", chatbot.vector_db)
-lodging_agent = LodgingAgent("LodgingAgent", chatbot.vector_db)
-nightlife_agent = NightlifeAgent("NightlifeAgent", chatbot.vector_db)
+historic_agent = HistoricAgent("HistoricAgent", st.session_state.chatbot.vector_db)
+gastronomy_agent = GastronomyAgent("GastronomyAgent", st.session_state.chatbot.vector_db)
+lodging_agent = LodgingAgent("LodgingAgent", st.session_state.chatbot.vector_db)
+nightlife_agent = NightlifeAgent("NightlifeAgent", st.session_state.chatbot.vector_db)
 
 # Configurar agentes especializados en el planner
 planner_agent.set_specialized_agents(
@@ -52,7 +63,7 @@ planner_agent.set_specialized_agents(
 )
 
 # Inicialización de agentes restantes
-retriever_agent = RetrieverAgent(chatbot.vector_db)
+retriever_agent = RetrieverAgent(st.session_state.chatbot.vector_db)
 generator_agent = GeneratorAgent(guide_agent, planner_agent)
 gap_detector_agent = GapDetectorAgent(detector)
 updater_agent = UpdaterAgent(updater)
@@ -97,7 +108,7 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
             sources = detector.identify_outdated_sources(prompt)
             update_task = {"type": "update_sources", "sources": sources}
             manager.dispatch(update_task, context)
-            chatbot.vector_db.reload_data()
+            st.session_state.chatbot.vector_db.reload_data()
             # Regenerar respuesta
             response = manager.dispatch(generate_task, context)
             status.update(label="✅ Actualización completada", state="complete")
