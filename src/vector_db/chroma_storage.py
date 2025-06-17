@@ -45,10 +45,11 @@ class VectorStorage:
         except Exception as e:
             # Si la colección no existe, la creamos
             print(f"Creando nueva colección: {str(e)}")
-            self.client.create_collection(
-                name=self.collection_name,
-                metadata={"hnsw:space": "cosine"}
-            )
+            if (not any([x for x in self.client.list_collections() if x.name == self.collection_name])):
+                self.client.create_collection(
+                    name=self.collection_name,
+                    metadata={"hnsw:space": "cosine"}
+                )
 
     def update_index(self):
         """Actualiza el índice con nuevos documentos"""
@@ -62,7 +63,7 @@ class VectorStorage:
         
         loader = JSONLoader(
             file_path=json_path,
-            jq_schema='.[] | {page_content: (.page_content // "" | tostring), metadata: .metadata}',
+            jq_schema='.[] | {page_content: ([.title, .description, .content] | join("\n")), metadata: {url: .url, city: .city, attractions: .attractions, timestamp: .timestamp, source: .metadata.source, crawl_date: .metadata.crawl_date, language: .metadata.language}}',
             text_content=False
         )
         
@@ -87,7 +88,7 @@ class VectorStorage:
             print(f"Error obteniendo documentos: {str(e)}")
             return []
         
-    def similarity_search(self, query, k=3):
+    def similarity_search(self, query, k=4):
         """Búsqueda por similitud"""
         return self.db.similarity_search(query, k=k)
         
@@ -118,10 +119,9 @@ class VectorStorage:
             
             if not os.path.exists(json_path):
                 raise FileNotFoundError(f"Archivo JSON no encontrado: {json_path}")
-            
             loader = JSONLoader(
                 file_path=json_path,
-                jq_schema='.[] | {page_content: (.page_content // "" | tostring), metadata: .metadata}',
+                jq_schema='.[] | {page_content: (.content // "" | tostring), metadata: {url: .url, city: .city, attractions: .attractions, timestamp: .timestamp, source: .metadata.source, crawl_date: .metadata.crawl_date, language: .metadata.language}}',
                 text_content=False
             )
             
