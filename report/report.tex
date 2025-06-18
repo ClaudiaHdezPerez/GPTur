@@ -10,6 +10,7 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{appendix}
+\usepackage[spanish]{babel}
 
 % \usepackage[showframe]{geometry} % Solo para verificación, quitar en versión final
 \usepackage{calc}
@@ -144,13 +145,7 @@ otros especializados en distintos tópicos: gastronomía, vida nocturna, alojami
 \subsection{Crawler Automatizado en Dos Fases. Recopilación del \textit{Corpus}}
 
 Se conoce como \textit{crawler} a un software que realiza un proceso automatizado de navegar por la Web de manera sistemática para indexar y recopilar
-información de diferentes sitios web. El sistema implementa un \textit{crawler} en dos fases:
-\begin{itemize}
-  \item  \textit{Fase inicial:} Recopila, almacena y organiza datos en un repositorio vectorial,
- garantizando una gestión eficiente de los vectores de información.
-  \item \textit{Fase dinámica:} Utiliza automáticamente información externa cuando el sistema
- detecte respuestas incompletas o desactualizadas.
-\end{itemize}
+información de diferentes sitios web. El sistema implementa un \textit{crawler} en dos fases.
 
 \subsubsection{Fase Inicial:} En esta fase el \textit{crawler} se configura con los parámetros necesarios, como las URLs objetivo (disponibles en \textit{src /data /sources.json}), 
 criterios de búsqueda y profundidad de rastreo. Utiliza técnicas de \textit{scraping} (extracción de la web) para navegar por sitios web turísticos, identificando y extrayendo 
@@ -348,7 +343,7 @@ Despejando en la inecuación se obtiene
 
 
 Entonces, para mantener el error estándar por debajo del umbral propuesto, en cada experimento se debió realizar al menos 400 simulaciones. Sin embargo, se tomó la decisión de 
-hacer 1000 en total, para hacer más robusto el experimento y dismnuir aún más el error estándar:
+hacer 1000 en total, para hacer más robusto el experimento y disminuir aún más el error estándar:
 
 
 \[
@@ -423,7 +418,7 @@ estudiante. No obstante, su interfaz amigable, sus respuestas actualizadas y per
 La eficacia del sistema no solo se basa en resultados subjetivos, sino que está respaldada por un conjunto de pruebas y experimentos que han demostrado cómo ha ido evolucionando GPTur, incrementando la precisión de sus respuestas en cada fase 
 de desarrollo, lo que justifica las decisiones tomadas para la implementación propuesta.
 
-La aplicación es una muestra del esfuerzo de todo un semestre y de los conocimientos adquiridos en los temas de \textit{Simulación}, \textit{Inteligencia Artificial} y \textit{Sistemas de Recuperación de Información}, pues en tiempo record se logró 
+La aplicación es una muestra del esfuerzo de todo un semestre y de los conocimientos adquiridos en los temas de \textit{Simulación}, \textit{Inteligencia Artificial} y \textit{Sistemas de Recuperación de Información}, pues en tiempo récord se logró 
 implementar un RAG, una arquitectura multiagente, metaheurística, entre otros muchos aspectos, que debieron ser quirúrjicamente enlazados para el funcionamiento completo del programa.
 
 Por supuesto, como todo sistema, tiene limitaciones que no pudieron resolverse en el tiempo especificado:
@@ -435,7 +430,7 @@ Por supuesto, como todo sistema, tiene limitaciones que no pudieron resolverse e
 
 No obstante, se proponen algunas soluciones para lograrlas:
 \begin{itemize}
-    \item Integrar el sistema a una API con datos sobre la ubicación de sitios turísticos y permita calcular distancias.
+    \item Integrar el sistema a una API con datos sobre la ubicación de sitios turísticos y que permita calcular distancias.
     \item Añadir nuevos agentes especializados para manejar otros problemas, como por ejemplo el del transporte.
     \item Integrar una ontología o un sistema basado en reglas para captar mejor las intenciones del usuario.
 \end{itemize}
