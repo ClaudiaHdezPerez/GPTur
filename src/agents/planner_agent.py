@@ -3,17 +3,36 @@ import math
 import random
 import re
 import time
+import numpy as np
+from scipy.stats import norm
 from dataclasses import dataclass
 from typing import List, Dict, Any, Union
+
+@dataclass
+class StochasticPrice:
+    base_price: float
+    std_dev: float = None
+    
+    def __post_init__(self):
+        if self.std_dev is None:
+            self.std_dev = self.base_price * 0.2
+    
+    def sample(self) -> float:
+        return max(1.0, norm.rvs(loc=self.base_price, scale=self.std_dev))
 
 @dataclass
 class Place:
     name: str
     city: str
-    cost: float
+    cost: Union[float, StochasticPrice]
     rating: float
     type: str
     description: str = ""
+    
+    def get_cost(self) -> float:
+        if isinstance(self.cost, StochasticPrice):
+            return self.cost.sample()
+        return self.cost
 
 class TravelPlannerAgent(BDIAgent):
     def __init__(self, vector_db):
@@ -65,11 +84,11 @@ class TravelPlannerAgent(BDIAgent):
         
         # Obtener lugares gastronómicos
         gastro_response = self.gastronomy_agent.get_recommendations(destination)
-        for place in self._parse_agent_response(gastro_response):
+        for place in self._parse_agent_response(gastro_response): 
             places["gastronomicos"].append(Place(
                 name=place["name"],
                 city=destination,
-                cost=place.get("cost", 20),
+                cost=StochasticPrice(base_price=place.get("cost", 20)),
                 rating=place.get("rating", 7),
                 type="restaurant",
                 description=place.get("description", "")
@@ -81,7 +100,7 @@ class TravelPlannerAgent(BDIAgent):
             places["nocturnos"].append(Place(
                 name=place["name"],
                 city=destination,
-                cost=place.get("cost", 30),
+                cost=StochasticPrice(base_price=place.get("cost", 30)),
                 rating=place.get("rating", 7),
                 type="nightlife",
                 description=place.get("description", "")
@@ -93,7 +112,7 @@ class TravelPlannerAgent(BDIAgent):
             places["alojamientos"].append(Place(
                 name=place["name"],
                 city=destination,
-                cost=place.get("cost", 50),
+                cost=StochasticPrice(base_price=place.get("cost", 50)),
                 rating=place.get("rating", 7),
                 type="lodging",
                 description=place.get("description", "")
@@ -196,11 +215,11 @@ class TravelPlannerAgent(BDIAgent):
         def is_valid_solution(sol):
             for day in sol:
                 total_cost = (
-                    day["desayuno"].cost +
-                    day["almuerzo"].cost +
-                    day["cena"].cost +
-                    day["noche"].cost +
-                    day["alojamiento"].cost
+                    day["desayuno"].get_cost() +
+                    day["almuerzo"].get_cost() +
+                    day["cena"].get_cost() +
+                    day["noche"].get_cost() +
+                    day["alojamiento"].get_cost()
                 )
                 if total_cost > budget_per_day:
                     return False
@@ -252,15 +271,21 @@ class TravelPlannerAgent(BDIAgent):
         
         for i, day in enumerate(solution, 1):
             itinerary += f"📅 Día {i}:\n"
-            itinerary += f"🌅 Desayuno: {day['desayuno'].name} - ${day['desayuno'].cost}\n"
-            itinerary += f"🍽️ Almuerzo: {day['almuerzo'].name} - ${day['almuerzo'].cost}\n"
-            itinerary += f"🌙 Cena: {day['cena'].name} - ${day['cena'].cost}\n"
-            itinerary += f"🎭 Actividad Nocturna: {day['noche'].name} - ${day['noche'].cost}\n"
-            itinerary += f"🏨 Alojamiento: {day['alojamiento'].name} - ${day['alojamiento'].cost}\n"
+            desayuno_cost = day['desayuno'].get_cost()
+            almuerzo_cost = day['almuerzo'].get_cost()
+            cena_cost = day['cena'].get_cost()
+            noche_cost = day['noche'].get_cost()
+            alojamiento_cost = day['alojamiento'].get_cost()
             
-            total_day = (day['desayuno'].cost + day['almuerzo'].cost + 
-                        day['cena'].cost + day['noche'].cost + 
-                        day['alojamiento'].cost)
+            itinerary += f"🌅 Desayuno: {day['desayuno'].name} - ${desayuno_cost:.2f}\n"
+            itinerary += f"🍽️ Almuerzo: {day['almuerzo'].name} - ${almuerzo_cost:.2f}\n"
+            itinerary += f"🌙 Cena: {day['cena'].name} - ${cena_cost:.2f}\n"
+            itinerary += f"🎭 Actividad Nocturna: {day['noche'].name} - ${noche_cost:.2f}\n"
+            itinerary += f"🏨 Alojamiento: {day['alojamiento'].name} - ${alojamiento_cost:.2f}\n"
+            
+            total_day = (desayuno_cost + almuerzo_cost + 
+                        cena_cost + noche_cost + 
+                        alojamiento_cost)
             itinerary += f"💰 Total del día: ${total_day}\n\n"
             
         response = self.client.chat(
@@ -283,6 +308,11 @@ class TravelPlannerAgent(BDIAgent):
         
         # Obtener lugares de los agentes especializados
         places = self._get_places_from_agents(destination)
+
+        print("dias:", days)
+        print("dest:", destination)
+        print("budget:", budget)
+        print("places:", places)
         
         # Ejecutar CSP con recocido simulado
         solution = self.simulated_annealing_csp(
@@ -330,12 +360,13 @@ class TravelPlannerAgent(BDIAgent):
         if action == "obtener_lugares":
             return self._get_places_from_agents(self.beliefs["destino"])
         elif action == "optimizar_itinerario":
-            return self.simulated_annealing_csp(
-                self.beliefs["dias"],
-                self.beliefs["lugares"],
-                self.beliefs["presupuesto"],
-                self.beliefs["destino"]
-            )
+            preferences = {
+                "dias": self.beliefs["dias"],
+                "lugares": self.beliefs["lugares"],
+                "presupuesto": self.beliefs["presupuesto"],
+                "destino": self.beliefs["destino"]
+            }
+            return self.create_itinerary(preferences)
         elif action == "formatear_respuesta":
             return self._format_itinerary(self.beliefs["solucion"])
         return None

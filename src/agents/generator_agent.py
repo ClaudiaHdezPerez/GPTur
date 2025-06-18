@@ -48,9 +48,11 @@ class GeneratorAgent(BaseAgent):
                 "intereses": prompt
             }
         except:
-            return {                "dias": 5,
+            print("no pudo obtener requisitos del itinerario")
+            return {
+                "dias": 5,
                 "destino": "Cuba", 
-                "presupuesto": 300,
+                "presupuesto": 50,
                 "intereses": prompt
             }
             
@@ -81,6 +83,7 @@ class GeneratorAgent(BaseAgent):
         # If the intention is planner, use the planner agent
         if intent == "PLANNING":
             preferences = self._extract_travel_params(prompt)
+            print(f"\npreferencias del usuario: {preferences}\n")
             return self.planner_agent.create_itinerary(preferences)
         
         # By default, use the guide agent
