@@ -1,6 +1,10 @@
 # GPTur
 
-*¿Deseos de vacacionar en Cuba? Su asesor turístico favorito ya esta aquí!!!*
+<p align="center">
+  <img src="src/logo/GPTur.png" alt="GPTur Logo" width="200"/>
+</p>
+
+*¿Deseos de vacacionar en Cuba? Su asesor turístico favorito ya está aquí!!!*
 
 ## Autores
 - Claudia Hernández Pérez -> C-312
