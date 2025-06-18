@@ -10,6 +10,7 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{appendix}
+\usepackage{listings}
 \usepackage[spanish]{babel}
 
 % \usepackage[showframe]{geometry} % Solo para verificación, quitar en versión final
@@ -117,8 +118,8 @@ la plataforma GitHub: \href{https://github.com/ClaudiaHdezPerez/GPTur}{\color{bl
 
 \section{Detalles de Implementación}\label{sec:implementacion}
 
-En esta sección, se abordarán los distintos temas asociados a la implementación de la solución propuesta, que incluyen la arquitecura RAG y multiagente, funcionamiento del \textit{crawler} automatizado y recopilación del corpus, base de datos vactorial y representación semántica del 
-conocimiento mediante \textit{embeddings}, procesamiento de lenguaje natural, algoritmos basados en metaheurísticas, entre otros. 
+En esta sección, se abordarán los distintos temas asociados a la implementación de la solución propuesta, que incluyen la arquitecura RAG y multiagente, funcionamiento del \textit{crawler} automatizado y recopilación del corpus, base de datos vectorial y representación semántica del 
+conocimiento mediante \textit{embeddings}, procesamiento de lenguaje natural y algoritmos basados en metaheurísticas. 
 
 \vspace{\baselineskip}
 
@@ -134,26 +135,96 @@ Está compuesto por una entrada, un recuperador, un generador y una salida. La i
 \end{enumerate}
 
 \vspace{\baselineskip}
-\subsection{Arquitectura multiagente}
+\subsection{Arquitectura Multiagente}
 
 Un sistema multiagente está constituido por un conjunto de agentes, cada uno con determinadas capacidades y recursos para la solución de problemas inherentemente distribuidos. Los agentes interactúan entre ellos, determinan y coordinan tareas a realizar según sus capacidades y recursos.
 
-GPTur cuenta con dos agentes fundamentales: el guía y el planificador. Existen, además, 
-otros especializados en distintos tópicos: gastronomía, vida nocturna, alojamiento y lugares históricos. Todos ellos 
+GPTur implementa una arquitectura multiagente con especialización por dominios turísticos:
 
+\begin{itemize}
+    \item \textit{GuideAgent}: Agente coordinador principal
+    \item \textit{GastronomyAgent}: Especializado en restaurantes y gastronomía
+    \item \textit{HistoricAgent}: Expertos en sitios históricos y culturales
+    \item \textit{LodgingAgent}: Encargado de alojamientos y hospedajes
+    \item \textit{NightlifeAgent}: Especialista en vida nocturna y entretenimiento
+    \item \textit{PlannerAgent}: Generador de itinerarios personalizados
+\end{itemize}
+
+\subsubsection{Modelo \textit{Creencias-Deseos-Intenciones}:}
+Cada agente extiende la clase base \textit{BDIAgent} que implementa el ciclo BDI (Beliefs-Desires-Intentions):
+
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+class BDIAgent:
+    def __init__(self, name, vector_db=None):
+        self.beliefs = {}      # Estado interno y conocimiento
+        self.desires = []      # Objetivos del agente
+        self.intentions = []   # Planes seleccionados
+        self.plans = {}        # Planes disponibles
+\end{lstlisting}
+
+El ciclo de ejecución BDI sigue el algoritmo clásico:
+\begin{enumerate}
+    \item \textit{action(percept)}: Punto de entrada principal
+    \item \textit{brf(percept)}: Actualización de creencias
+    \item \textit{generate\_options()}: Generación de opciones
+    \item \textit{filter(options)}: Selección de intenciones
+    \item \textit{execute()}: Ejecución de acciones
+\end{enumerate}
+
+Cada agente especializado implementa planes y acciones específicos, funciones de relevancia y 
+verificación de precondiciones.
+
+\subsubsection{Comunicación entre Agentes:}
+El sistema implementa un patrón de pizarra compartida para colaboración:
+
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+class Blackboard:
+    _instance = None # existe una sola pizarra en el programa
+    _lock = Lock() # variable de bloqueo
+
+    def __new__(cls):
+        if cls._instance is None:
+            # crea la instancia
+        return cls._instance
+
+    def __init__(self):
+        self._shared_space = {}
+        self._current_problem = None
+        
+    def write(self, agent_name, contribution):
+        # Escribe en el espacio compartido
+        
+    def read(self, problem_id):
+        # Lee contribuciones de otros agentes
+\end{lstlisting}
+
+El GuideAgent utiliza un sistema de \textit{Thread Pool} para ejecutar a los agentes especializados en paralelo. 
+Cada agente escribe sus contribuciones en la pizarra si no interfiere con otro agente. En caso que sí, se queda esperando hasta poder 
+escribir. El GuideAgent lee todas las contribuciones de la pizarra y las fusiona para generar una respuesta. Para eso se utiliza un modelo 
+de lenguaje.
+Entre los beneficios de esta arquitectura se pueden mencionar:
+\begin{itemize}
+    \item \textit{Modularidad}: Cada agente encapsula conocimiento especializado
+    \item \textit{Escalabilidad}: Fácil añadir nuevos dominios (playas, deportes, etc.)
+    \item \textit{Robustez}: Fallos en un agente no colapsan el sistema
+\end{itemize}
+
+Esta arquitectura permite construir un sistema de recomendaciones turísticas complejo, adaptable y altamente especializado.
+
+%...
 \vspace{\baselineskip}
 \subsection{Crawler Automatizado en Dos Fases. Recopilación del \textit{Corpus}}
 
-Se conoce como \textit{crawler} a un software que realiza un proceso automatizado de navegar por la Web de manera sistemática para indexar y recopilar
+Se conoce como \textit{crawler} a un software que realiza un proceso automatizado de navegar por la web de manera sistemática para indexar y recopilar
 información de diferentes sitios web. El sistema implementa un \textit{crawler} en dos fases.
 
-\subsubsection{Fase Inicial:} En esta fase el \textit{crawler} se configura con los parámetros necesarios, como las URLs objetivo (disponibles en \textit{src /data /sources.json}), 
+\subsubsection{Fase Inicial:} En esta fase el \textit{crawler} se configura con los parámetros necesarios, como las urls objetivo (disponibles en \textit{src /data /sources.json}), 
 criterios de búsqueda y profundidad de rastreo. Utiliza técnicas de \textit{scraping} (extracción de la web) para navegar por sitios web turísticos, identificando y extrayendo 
 información relevante como descripciones de lugares, eventos, alojamientos y actividades. Los datos extraídos son normalizados y almacenados en un formato \textit{.json}, facilitando su posterior análisis y procesamiento.
 
 \subsubsection{Fase Dinámica:} Esta fase actúa cuando el programa detecta que la información con que cuenta no es suficiente para responder concretamente la consulta del usuario. Esta detección es realizada por un modelo de 
-lenguaje al cual se le envía un \textit{prompt} con la consulta y los documentos relevantes encontrados, esperando una respuesta de \textit{OK} o \textit{Actualizar}. En caso de la segunda, en un nuevo \textit{prompt} se le pide 
-\textit{urls} que permitan enriquecer el corpus y responder la consulta. El \textit{crawler} accede a ellas y se toma dicha información para continuar el proceso del programa. A su vez dicha información es añadida a la base de datos 
+lenguaje al cual se le envía un \textit{prompt} con la consulta y la respuesta generada por el sistema, esperando una indicación de \textit{OK} o \textit{Actualizar}. En caso de la segunda, en un nuevo \textit{prompt} se le pide 
+\textit{urls} que permitan enriquecer el corpus y responder la consulta. El \textit{crawler} accede a ellas y se toma dicha información para fusionarla con la respuesta inicial. A su vez es añadida a la base de datos 
 vectorial.
 
 \subsubsection{Recopilación y Construcción del Corpus:} Este proceso consta de cuatro tareas principales:
@@ -161,7 +232,7 @@ vectorial.
 \begin{itemize}
     \item \textit{Selección de Fuentes:} Se identificaron y seleccionaron fuentes web relevantes para el turismo, como portales oficiales, blogs y sitios de reseñas.
     \item \textit{Rastreo y Descarga:} El \textit{crawler} recorre las páginas seleccionadas, descargando el contenido textual y metadatos asociados.
-    \item \textit{Filtrado y Normalización:} Se aplican filtros para eliminar información irrelevante o duplicada, y se normalizan los datos para mantener la coherencia en el corpus.
+    \item \textit{Filtrado y Normalización:} Se aplican filtros para eliminar información irrelevante o duplicada y se normalizan los datos para mantener la coherencia en el corpus.
     \item \textit{Almacenamiento:} El corpus final se almacena en formato \textit{.json} (disponible en \textit{src /data /processed /normalized\_data.json}).
 \end{itemize}
 
@@ -223,7 +294,7 @@ El sistema debe generar un itinerario diario considerando:
 \begin{itemize}
     \item \textit{Actividades:} Desayuno, almuerzo, cena, actividad nocturna y alojamiento.
     \item \textit{Restricciones:} Presupuesto diario máximo.
-    \item \textit{Objetivo:}Maximizar la valoración total de los lugares seleccionados.
+    \item \textit{Objetivo:} Maximizar la valoración total de los lugares seleccionados.
 \end{itemize}
 
 Matemáticamente, el problema se formula como:
@@ -247,7 +318,7 @@ Donde:
 
 \subsubsection{Algoritmo de Recocido Simulado:}
 El recocido simulado es una metaheurística inspirada en el proceso térmico de recocido en metalurgia. Para el problema en cuestión pudiese surgir la 
-interrogante de por qué utilizar metaheurística para resolver un problema de optimización lineal. La respuesta es simplemente porque los costos asociados a cada 
+interrogante de por qué utilizar metaheurística para resolver un problema de optimización lineal. La respuesta es simple: los costos asociados a cada 
 lugar están representados por un proceso estocástico, que representa situaciones reales, como ofertas, descuentos, diferencia de precios según la época del año, los 
 fines de semana, en fin, un conjunto de situaciones que evitan que los precios sean estáticos. A continuación se describe la implementación del algoritmo.
 
