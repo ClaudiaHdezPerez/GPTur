@@ -40,27 +40,15 @@ class TravelPlannerAgent(BDIAgent):
         
         # Definir deseos base del agente
         self.desires = [
-            "crear_itinerario",
-            "optimizar_recursos",
-            "balancear_actividades"
+            "crear_itinerario"
         ]
         
         # Definir planes disponibles
         self.plans = {
             "crear_itinerario": {
-                "objetivo": "Crear un itinerario completo",
+                "objetivo": "crear_itinerario",
                 "precondiciones": ["destino_valido", "dias_validos", "presupuesto_valido"],
-                "acciones": ["obtener_lugares", "optimizar_itinerario", "formatear_respuesta"]
-            },
-            "optimizar_recursos": {
-                "objetivo": "Optimizar uso de recursos",
-                "precondiciones": ["tiene_presupuesto", "tiene_restricciones_tiempo"],
-                "acciones": ["analizar_costos", "ajustar_tiempos", "balancear_presupuesto"]
-            },
-            "balancear_actividades": {
-                "objetivo": "Balancear tipos de actividades",
-                "precondiciones": ["tiene_actividades"],
-                "acciones": ["clasificar_actividades", "distribuir_equilibradamente"]
+                "acciones": ["crear_itinerario"]
             }
         }
         
@@ -82,9 +70,11 @@ class TravelPlannerAgent(BDIAgent):
             "alojamientos": []
         }
         
+        percept = {"destination": destination}
+        
         # Obtener lugares gastronómicos
-        gastro_response = self.gastronomy_agent.get_recommendations(destination)
-        for place in self._parse_agent_response(gastro_response): 
+        gastro_response = self.gastronomy_agent.action(percept)
+        for place in self._parse_agent_response(gastro_response):
             places["gastronomicos"].append(Place(
                 name=place["name"],
                 city=destination,
@@ -95,7 +85,7 @@ class TravelPlannerAgent(BDIAgent):
             ))
 
         # Obtener lugares nocturnos
-        night_response = self.nightlife_agent.get_recommendations(destination)
+        night_response = self.nightlife_agent.action(percept)
         for place in self._parse_agent_response(night_response):
             places["nocturnos"].append(Place(
                 name=place["name"],
@@ -107,7 +97,7 @@ class TravelPlannerAgent(BDIAgent):
             ))
 
         # Obtener alojamientos
-        lodging_response = self.lodging_agent.get_recommendations(destination)
+        lodging_response = self.lodging_agent.action(percept)
         for place in self._parse_agent_response(lodging_response):
             places["alojamientos"].append(Place(
                 name=place["name"],
@@ -227,12 +217,9 @@ class TravelPlannerAgent(BDIAgent):
 
         # Inicialización
         print("Iniciando recocido simulado para planificar viaje...")
-        start_time = time.time()  # Registrar tiempo de inicio
         current_sol = generate_initial_solution()
         while not is_valid_solution(current_sol):
             current_sol = generate_initial_solution()
-            if time.time() - start_time > max_time:  # Si excede el tiempo máximo
-                return current_sol  # Devolver la mejor solución encontrada hasta ahora
             
         best_sol = current_sol.copy()
         best_rating = calculate_total_rating(current_sol)
@@ -242,6 +229,7 @@ class TravelPlannerAgent(BDIAgent):
         T_min = 0.1
         alpha = 0.99
         
+        start_time = time.time()  # Registrar tiempo de inicio
         while T > T_min:
             for _ in range(max_iter):
                 # Verificar si se excedió el tiempo límite
@@ -305,7 +293,7 @@ class TravelPlannerAgent(BDIAgent):
         destination = preferences.get("destino", "Cuba")
         days = preferences.get("dias", 5)
         budget = preferences.get("presupuesto", 50)
-        
+                
         # Obtener lugares de los agentes especializados
         places = self._get_places_from_agents(destination)
 
@@ -337,36 +325,28 @@ class TravelPlannerAgent(BDIAgent):
                 if "presupuesto" not in self.beliefs or self.beliefs["presupuesto"] <= 0:
                     return False
         return True
+    
+    def _is_compatible(self, option) -> bool:
+        return True
+    
+    def _is_plan_relevant(self, plan) -> bool:
+        return True
         
     def _evaluate_intention(self, option) -> bool:
         """Evalúa si una opción debe convertirse en intención"""
         # Evaluar basado en el estado actual y recursos disponibles
         if option["objetivo"] == "crear_itinerario":
-            return "current_query" in self.beliefs
-        elif option["objetivo"] == "optimizar_recursos":
-            return "presupuesto" in self.beliefs
+            return "destino" in self.beliefs
         return True
         
     def _get_next_action(self, intention):
         """Obtiene la siguiente acción para una intención"""
-        if intention["objetivo"] == "crear_itinerario":
-            return self._get_itinerary_action()
-        elif intention["objetivo"] == "optimizar_recursos":
-            return self._get_optimization_action()
-        return None
+        if not intention.get("acciones"):
+            return None
+        return intention["acciones"][0]
         
     def _perform_action(self, action):
         """Ejecuta una acción específica"""
-        if action == "obtener_lugares":
-            return self._get_places_from_agents(self.beliefs["destino"])
-        elif action == "optimizar_itinerario":
-            preferences = {
-                "dias": self.beliefs["dias"],
-                "lugares": self.beliefs["lugares"],
-                "presupuesto": self.beliefs["presupuesto"],
-                "destino": self.beliefs["destino"]
-            }
-            return self.create_itinerary(preferences)
-        elif action == "formatear_respuesta":
-            return self._format_itinerary(self.beliefs["solucion"])
+        if action == "crear_itinerario":
+            return self.create_itinerary(self.beliefs)
         return None

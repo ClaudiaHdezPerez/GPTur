@@ -139,8 +139,8 @@ class GapDetector:
             new_sources = json.loads(api_response.choices[0].message.content.strip())
 
             # Cargar archivos JSON existentes
-            sources_file = os.path.join(self.base_dir, 'data', 'sources.json')
-            normalized_file = os.path.join(self.base_dir, 'data', 'processed', 'normalized_data.json')
+            sources_file = os.path.join(self.base_dir, 'src', 'data', 'sources.json')
+            normalized_file = os.path.join(self.base_dir, 'src', 'data', 'processed', 'normalized_data.json')
 
             existing_sources = self._load_json_file(sources_file)
             normalized_data = self._load_json_file(normalized_file)
@@ -148,9 +148,9 @@ class GapDetector:
             # Procesar cada nueva fuente
             for source in new_sources:
                 # Verificar si la URL ya existe
-                if not any(existing['url'] == source['url'] for existing in existing_sources):
+                if not any(existing == source['url'] for existing in existing_sources):
                     # Agregar a sources.json
-                    existing_sources.append(source)
+                    existing_sources.append(source['url'])
 
                     # Obtener información detallada y agregar a normalized_data.json
                     webpage_info = self._fetch_webpage_info(source['url'])

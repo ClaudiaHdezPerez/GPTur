@@ -5,6 +5,7 @@ from .lodging_agent import LodgingAgent
 from .historic_agent import HistoricAgent 
 from .nightlife_agent import NightlifeAgent
 from .gastronomy_agent import GastronomyAgent
+from .generator_agent import _convert_docs_to_string
 from langchain_community.retrievers import BM25Retriever
 from crawlers.dynamic_crawler import DynamicCrawler
 import time
@@ -19,9 +20,7 @@ class GuideAgent(BDIAgent):
         
         # Definir deseos base del agente
         self.desires = [
-            "responder_consultas",
-            "mantener_datos_actualizados",
-            "coordinar_agentes"
+            "responder_consultas"
         ]
         
         # Definir planes disponibles
@@ -30,17 +29,7 @@ class GuideAgent(BDIAgent):
                 "objetivo": "generar_respuesta",
                 "precondiciones": ["tiene_consulta", "datos_disponibles"],
                 "acciones": ["generar_respuesta"]
-            },
-            "mantener_datos_actualizados": {
-                "objetivo": "actualizar_datos",
-                "precondiciones": ["datos_obsoletos"],
-                "acciones": ["ejecutar_crawler"]
             }
-            # "coordinar_agentes": {
-            #     "objetivo": "coordinar_respuesta",
-            #     "precondiciones": ["tiene_consulta", "agentes_disponibles"],
-            #     "acciones": ["distribuir_tareas", "recolectar_respuestas", "consolidar_informacion"]
-            # }
         }
         
         self.retriever = BM25Retriever.from_documents(vector_db.get_documents())
@@ -55,16 +44,16 @@ class GuideAgent(BDIAgent):
             "nightlife": NightlifeAgent("NightlifeBot", vector_db),
             "gastronomy": GastronomyAgent("GastronomyBot", vector_db)
         }
-        self.thread_pool = ThreadPoolExecutor(max_workers=len(self.specialized_agents))
-
+        # Initialize thread pool with daemon threads
+        self.thread_pool = ThreadPoolExecutor(
+            max_workers=len(self.specialized_agents),
+            thread_name_prefix="GPTur_Agent"
+        )
+        
     def _is_plan_relevant(self, plan) -> bool:
         """Verifica si un plan es relevante para el estado actual"""
         if plan["objetivo"] == "generar_respuesta":
             return "current_query" in self.beliefs
-        elif plan["objetivo"] == "actualizar_datos":
-            return self.beliefs.get("data_freshness", 0) < 24
-        elif plan["objetivo"] == "coordinar_respuesta":
-            return "current_query" in self.beliefs and self.specialized_agents
         return False
 
     def _is_achievable(self, plan) -> bool:
@@ -80,10 +69,6 @@ class GuideAgent(BDIAgent):
             return "current_query" in self.beliefs
         elif precondition == "datos_disponibles":
             return bool(self.vector_db.get_documents())
-        elif precondition == "datos_obsoletos":
-            return self.beliefs.get("data_freshness", 0) < 24
-        elif precondition == "agentes_disponibles":
-            return bool(self.specialized_agents)
         return False
 
     def _is_compatible(self, plan) -> bool:
@@ -103,8 +88,6 @@ class GuideAgent(BDIAgent):
         """Ejecuta una acción específica"""
         if action == "generar_respuesta":
             return self.generate_response()
-        elif action == "ejecutar_crawler":
-            return self.trigger_crawler()
         return None
     
     def trigger_crawler(self):
@@ -112,23 +95,18 @@ class GuideAgent(BDIAgent):
         crawler.update_sources(self.vector_db.get_sources())
         self.vector_db.reload_data()
         st.session_state.last_update = time.time()
-    
-    def receive_message(self, sender, message):
-        # When receiving a message from a specialized agent, write it to the blackboard
-        if hasattr(sender, "specialization"):
-            self.blackboard.write(sender.name, message)
-    
-    def process_agent_query(self, agent, query, relevant_docs):
+        
+    def process_agent_query(self, agent : BDIAgent, query, relevant_docs):
         """Process query for a specific agent in a thread-safe manner"""
         if self.stop_event.is_set():
             return None
         
-        print(relevant_docs)
         percept = (query, relevant_docs)
             
         try:
+            # El agente procesa la consulta y escribe directamente en la pizarra
             results = agent.action(percept)
-            agent.communicate(self, results)
+            self.blackboard.write(agent.name, results)
             return results
         except Exception as e:
             print(f"Error with {agent.specialization} agent: {str(e)}")
@@ -165,17 +143,18 @@ class GuideAgent(BDIAgent):
         
         # Get relevant documents using enhanced search query
         relevant_docs = self.vector_db.similarity_search(search_query)
+        document_text = _convert_docs_to_string(relevant_docs)
 
         # Submit tasks to thread pool
         future_to_agent = {
             self.thread_pool.submit(
-                self.process_agent_query, agent, query, relevant_docs
+                self.process_agent_query, agent, query, document_text
             ): agent.specialization for agent in self.specialized_agents.values()
         }
 
         # Wait for all tasks to complete or handle timeouts
         try:
-            for future in as_completed(future_to_agent, timeout=30):  # 30 second timeout
+            for future in as_completed(future_to_agent, timeout=120):  # 2 minutes timeout
                 agent_type = future_to_agent[future]
                 try:
                     future.result()

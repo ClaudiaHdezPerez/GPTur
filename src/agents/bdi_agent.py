@@ -23,8 +23,10 @@ class BDIAgent:
             return execute(I)
         """
         # Paso 1: Actualizar creencias (belief revision function)
-        print(f"Percept received: {percept}")
+        print("Percept", percept)
         self.brf(percept)
+        
+        print("Beliefs:", self.beliefs)
         
         # Paso 2: Generar opciones basadas en B,D,I
         options = self.generate_options()
@@ -56,7 +58,7 @@ class BDIAgent:
             plan = self.plans.get(desire)
             if plan and self._is_plan_relevant(plan):
                 options.append(plan)
-        print(f"Options {options}")
+                
         return options
         
     def _is_plan_relevant(self, plan) -> bool:
@@ -72,7 +74,6 @@ class BDIAgent:
             if self._is_achievable(option) and self._is_compatible(option):
                 filtered_intentions.append(option)
                 
-        print(f"Filtered intentions: {filtered_intentions}")
         return filtered_intentions
         
     def _is_achievable(self, plan) -> bool:
@@ -93,9 +94,12 @@ class BDIAgent:
             
         for intention in self.intentions:
             action = self._get_next_action(intention)
-            print(f"Next action for intention {intention}: {action}")
             if action:
-                return self._perform_action(action)
+                result = self._perform_action(action)
+                # Si el agente es especializado (tiene specialization) y tiene blackboard
+                if hasattr(self, 'specialization') and hasattr(self, 'blackboard') and result:
+                    self.blackboard.write(self.name, result)
+                return result
         return None
         
     def _get_next_action(self, intention):
@@ -111,13 +115,3 @@ class BDIAgent:
     def check_data_freshness(self):
         """Verifica la frescura de los datos"""
         return st.session_state.get("last_update", 0)
-        
-    def communicate(self, recipient, message):
-        """Envía un mensaje a otro agente"""
-        recipient.receive_message(self.name, message)
-        
-    def receive_message(self, sender, message):
-        """Recibe un mensaje y actualiza creencias"""
-        self.beliefs["context"].append(f"{sender}: {message}")
-        # Procesar el mensaje como una percepción
-        self.action((None, [f"{sender}: {message}"]))
