@@ -6,7 +6,7 @@ import time
 import numpy as np
 from scipy.stats import norm
 from dataclasses import dataclass
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, final
 
 @dataclass
 class StochasticPrice:
@@ -25,14 +25,18 @@ class Place:
     name: str
     city: str
     cost: Union[float, StochasticPrice]
+    final_cost: float
     rating: float
     type: str
     description: str = ""
     
     def get_cost(self) -> float:
         if isinstance(self.cost, StochasticPrice):
-            return self.cost.sample()
-        return self.cost
+            self.final_cost = self.cost.sample()
+        else:
+            self.final_cost = self.cost
+            
+        return self.final_cost
 
 class TravelPlannerAgent(BDIAgent):
     def __init__(self, vector_db):
@@ -79,6 +83,7 @@ class TravelPlannerAgent(BDIAgent):
                 name=place["name"],
                 city=destination,
                 cost=StochasticPrice(base_price=place.get("cost", 20)),
+                final_cost=0.0,
                 rating=place.get("rating", 7),
                 type="restaurant",
                 description=place.get("description", "")
@@ -91,6 +96,7 @@ class TravelPlannerAgent(BDIAgent):
                 name=place["name"],
                 city=destination,
                 cost=StochasticPrice(base_price=place.get("cost", 30)),
+                final_cost=0.0,
                 rating=place.get("rating", 7),
                 type="nightlife",
                 description=place.get("description", "")
@@ -103,6 +109,7 @@ class TravelPlannerAgent(BDIAgent):
                 name=place["name"],
                 city=destination,
                 cost=StochasticPrice(base_price=place.get("cost", 50)),
+                final_cost=0.0,
                 rating=place.get("rating", 7),
                 type="lodging",
                 description=place.get("description", "")
@@ -259,11 +266,13 @@ class TravelPlannerAgent(BDIAgent):
         
         for i, day in enumerate(solution, 1):
             itinerary += f"📅 Día {i}:\n"
-            desayuno_cost = day['desayuno'].get_cost()
-            almuerzo_cost = day['almuerzo'].get_cost()
-            cena_cost = day['cena'].get_cost()
-            noche_cost = day['noche'].get_cost()
-            alojamiento_cost = day['alojamiento'].get_cost()
+            desayuno_cost = day['desayuno'].final_cost
+            almuerzo_cost = day['almuerzo'].final_cost
+            cena_cost = day['cena'].final_cost
+            noche_cost = day['noche'].final_cost
+            alojamiento_cost = day['alojamiento'].final_cost
+            
+            print(desayuno_cost, almuerzo_cost, cena_cost, noche_cost, alojamiento_cost)
             
             itinerary += f"🌅 Desayuno: {day['desayuno'].name} - ${desayuno_cost:.2f}\n"
             itinerary += f"🍽️ Almuerzo: {day['almuerzo'].name} - ${almuerzo_cost:.2f}\n"

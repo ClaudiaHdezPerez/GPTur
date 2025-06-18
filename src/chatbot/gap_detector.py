@@ -162,7 +162,7 @@ class GapDetector:
             self._save_json_file(sources_file, existing_sources)
             self._save_json_file(normalized_file, normalized_data)
 
-            return new_sources
+            return new_sources, webpage_info
 
         except Exception as e:
             print(f"Error al buscar fuentes actualizadas: {e}")

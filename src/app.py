@@ -94,21 +94,33 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
 
     # Generar respuesta
     generate_task = {"type": "generate", "prompt": prompt}
-    response = manager.dispatch(generate_task, context)
-
-    # Verificar si necesita actualización
+    response = manager.dispatch(generate_task, context)    # Verificar si necesita actualización
     detect_task = {"type": "detect_gap", "prompt": prompt, "response": response}
     needs_update = manager.dispatch(detect_task, context)
 
     if needs_update:
         with st.status("🔄 Actualizando información...", expanded=True) as status:
             # Identificar fuentes a actualizar
-            sources = detector.identify_outdated_sources(prompt)
+            sources, new_context = detector.identify_outdated_sources(prompt)
             update_task = {"type": "update_sources", "sources": sources}
             manager.dispatch(update_task, context)
             st.session_state.chatbot.vector_db.update_index()
-            # Regenerar respuesta
-            response = manager.dispatch(generate_task, context)
+            
+            # Obtener la respuesta actual en formato texto
+            current_response = str(response) if not hasattr(response, 'choices') else " ".join([choice.message.content for choice in response.choices])
+            
+            # Usar Mistral AI para mejorar la respuesta con el nuevo contexto
+            enhanced_response = st.session_state.chatbot.mistral_client.chat(
+                model="mistral-medium",
+                messages=[
+                    {"role": "system", "content": "Eres un asistente turístico especializado en Cuba. Debes mejorar una respuesta previa incorporando nueva información, manteniendo el estilo y estructura de la respuesta original."},
+                    {"role": "user", "content": f"Pregunta original: {prompt}\n\nRespuesta actual: {current_response}\n\nNueva información para incorporar: {new_context}\n\nPor favor, mejora la respuesta anterior incorporando la nueva información pero manteniendo el mismo estilo y estructura."}
+                ],
+                temperature=0.7
+            )
+            
+            # Actualizar la respuesta con la versión mejorada
+            response = enhanced_response
             status.update(label="✅ Actualización completada", state="complete")
 
     # Agregar respuesta final
