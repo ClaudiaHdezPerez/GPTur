@@ -34,14 +34,6 @@ class CubaTourismSpider(CrawlSpider):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.start_urls = [
-            "https://www.cuba.travel/destinos",
-            "https://www.hicuba.com/destinos.htm",
-            "https://www.viajehotelescuba.com/provincias",
-            "https://www.buenviajeacuba.com/informacion-destinos/",
-            "https://visitcubago.com/mejores-lugares-turisticos-visitar-en-cuba/",
-            "https://www.sitiosturisticos.es/paises-de-america/30-lugares-para-conocer-en-cuba/"
-        ]
 
     # Reglas para seguir enlaces relevantes
     rules = (
@@ -52,7 +44,7 @@ class CubaTourismSpider(CrawlSpider):
                     r'/cuba/.*(ciudad|destino|lugar|turismo).*',
                     r'/(habana|santiago|varadero|trinidad|cienfuegos|vinales|matanzas|isla|cayo|santa clara|holguin|sierra maestra).*',
                     r'/hotel/', r'/vuelos/', r'/forum/', r'/review/',
-                    r'/(playa|excursion|museo|cultura|restaurante|atraccion|guia|travel)/'  # Nuevos términos
+                    r'/(playa|excursion|museo|cultura|restaurante|atraccion|guia|travel)/'
                 )
             ),
             callback='parse',

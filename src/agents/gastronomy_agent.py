@@ -1,3 +1,4 @@
+import json
 from .bdi_agent import BDIAgent
 from .blackboard import Blackboard
 
@@ -7,7 +8,7 @@ class GastronomyAgent(BDIAgent):
         self.specialization = "gastronomy"
         self.blackboard = Blackboard()
         
-        # Inicializar creencias específicas de gastronomía
+        # Initialize gastronomy-specific beliefs
         self.beliefs = {
             "restaurants": {},
             "cuisine_types": [
@@ -30,32 +31,28 @@ class GastronomyAgent(BDIAgent):
                 "dinner",
                 "snacks",
                 "drinks"
-            ]
+            ],
+            "current_query": None,
+            "destination": None,
+            "preferences": None
         }
         
-        # Definir deseos del agente gastronómico
+        # Define the agent's desires - what it wants to achieve
         self.desires = [
-            "buscar_restaurantes",
-            "recomendar_lugares",
-            "analizar_preferencias"
+            "process_user_query",      # Process query to extract preferences and destination
+            "recommend_restaurants"     # Provide restaurant recommendations for a destination
         ]
-        
-        # Definir planes disponibles
+          # Define available plans - how to achieve the desires
         self.plans = {
-            "buscar_restaurantes": {
-                "objetivo": "encontrar_opciones",
-                "precondiciones": ["tiene_ubicacion"],
-                "acciones": ["buscar_en_db", "clasificar_resultados", "formatear_respuesta"]
+            "process_user_query": {
+                "objetivo": "extract_info_from_query",
+                "precondiciones": ["has_query"],
+                "acciones": ["extract_destination_and_preferences"]
             },
-            "recomendar_lugares": {
-                "objetivo": "dar_recomendaciones",
-                "precondiciones": ["tiene_ubicacion", "tiene_preferencias"],
-                "acciones": ["analizar_preferencias", "filtrar_opciones", "generar_recomendaciones"]
-            },
-            "analizar_preferencias": {
-                "objetivo": "entender_gustos",
-                "precondiciones": ["tiene_consulta"],
-                "acciones": ["extraer_preferencias", "clasificar_preferencias"]
+            "recommend_restaurants": {
+                "objetivo": "provide_recommendations",
+                "precondiciones": ["has_destination"],
+                "acciones": ["get_recommendations"]
             }
         }
 
@@ -163,12 +160,8 @@ class GastronomyAgent(BDIAgent):
         ).choices[0].message.content
         
         return suggestion
-
-    def communicate(self, recipient, message):
-        if isinstance(recipient, BDIAgent):
-            recipient.receive_message(self, message)
             
-    def get_recommendations(self, destination):
+    def _get_recommendations(self, destination):
         """Get restaurant recommendations for a specific destination"""
         prompt = f"""Dame los 10 mejores restaurantes en {destination} con el siguiente formato para cada uno:
         - Nombre del restaurante
@@ -231,83 +224,176 @@ class GastronomyAgent(BDIAgent):
         - Valoración: 8/10
         - Pasta fresca y pizzas artesanales en un ambiente romántico"""
 
-    def _is_plan_relevant(self, plan) -> bool:
-        """Verifica si un plan es relevante para el estado actual"""
-        if plan["objetivo"] == "encontrar_opciones":
-            return "destination" in self.beliefs
-        elif plan["objetivo"] == "dar_recomendaciones":
-            return "current_query" in self.beliefs and "destination" in self.beliefs
-        elif plan["objetivo"] == "entender_gustos":
-            return "current_query" in self.beliefs
+    def _check_precondition(self, precondition) -> bool:
+        """Verify a specific precondition"""
+        if precondition == "has_query":
+            return "current_query" in self.beliefs and self.beliefs["current_query"] is not None
+        elif precondition == "has_destination":
+            return "destination" in self.beliefs and self.beliefs["destination"] is not None
         return False
 
-    def _check_precondition(self, precondition) -> bool:
-        """Verifica una precondición específica"""
-        if precondition == "tiene_ubicacion":
-            return "destination" in self.beliefs
-        elif precondition == "tiene_preferencias":
-            return bool(self.beliefs.get("preferences", {}))
-        elif precondition == "tiene_consulta":
-            return "current_query" in self.beliefs
+    def _is_plan_relevant(self, plan) -> bool:
+        """Check if a plan is relevant for the current state"""
+        if plan["objetivo"] == "extract_info_from_query":
+            return "current_query" in self.beliefs and self.beliefs["current_query"] is not None
+        elif plan["objetivo"] == "provide_recommendations":
+            return "destination" in self.beliefs and self.beliefs["destination"] is not None
         return False
 
     def _is_achievable(self, plan) -> bool:
-        """Verifica si un plan es alcanzable según las precondiciones"""
-        return all(self._check_precondition(pre) for pre in plan["precondiciones"])
-
+        """Check if a plan is achievable based on its preconditions"""
+        return all(self._check_precondition(pre) for pre in plan["precondiciones"])    
+    
     def _is_compatible(self, plan) -> bool:
-        """Verifica si un plan es compatible con las intenciones actuales"""
-        # Todos los planes de gastronomía son compatibles entre sí
+        """Check if a plan is compatible with current intentions"""
+        # All gastronomy plans are compatible with each other
         return True
 
     def _get_next_action(self, intention) -> str:
-        """Determina la siguiente acción para una intención"""
+        """Determine the next action for an intention"""
         if not intention.get("acciones"):
             return None
         return intention["acciones"][0]
 
     def _perform_action(self, action):
-        """Ejecuta una acción específica"""
-        if action == "buscar_en_db":
-            return self.search_restaurants(self.beliefs["destination"])
-        elif action == "generar_recomendaciones":
-            preferences = self.beliefs.get("preferences", {})
+        """Execute a specific action"""
+        if action == "extract_destination_and_preferences":
+            # Extract destination from query using NLP
+            query = self.beliefs["current_query"]
+            system_prompt = """Extract the destination from this query. Return ONLY the destination name, nothing else.
+            If no destination is found, return 'unknown'."""
+            
+            response = self.client.chat(
+                model="mistral-medium",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ]
+            )
+            destination = response.choices[0].message.content.strip()
+            
+            if destination and destination.lower() != 'unknown':
+                self.beliefs["destination"] = destination
+            
+            # Extract preferences
+            preferences = self._extract_preferences(query)
+            self.beliefs["preferences"] = preferences
+            
+            # Return restaurant suggestions based on extracted info
             return self.get_restaurant_suggestion(
                 self.beliefs["destination"],
                 preferences,
-                preferences.get("budget", "moderate")
+                preferences.get("price_range", "moderate")
             )
-        elif action == "extraer_preferencias":
-            return self._extract_preferences(self.beliefs["current_query"])
-        return None
+        elif action == "get_recommendations":
+            # Direct recommendations for a destination
+            return self._get_recommendations(self.beliefs["destination"])
+
+    def process_query(self, query):
+        """Process a user query to extract preferences and get recommendations"""
+        self.beliefs["current_query"] = query
+        # Extract destination from query (this is a simplified example)
+        # In a real implementation, you might want to use NLP to extract the destination
+        words = query.split()
+        for word in words:
+            if word.istitle():  # Simple heuristic: capitalized words might be places
+                self.beliefs["destination"] = word
+                break
+        
+        return self.action({"type": "query", "content": query})
 
     def get_recommendations(self, destination):
-        """Obtiene recomendaciones usando el ciclo BDI"""
-        # Crear percepción con el destino
-        percept = {"destination": destination}
+        """Get recommendations for a specific destination"""
+        self.beliefs["destination"] = destination
+        self.beliefs["current_query"] = None  # Clear any existing query
+        self.beliefs["preferences"] = None    # Clear any existing preferences
         
-        # Ejecutar ciclo BDI y obtener acción
-        return self.action(percept)
+        return self.action({"type": "destination", "content": destination})
 
     def _extract_preferences(self, query):
         """Extrae preferencias gastronómicas de la consulta"""
-        system_prompt = """Extrae las siguientes preferencias del texto:
-        - tipo de cocina
-        - rango de precio
-        - dietas especiales
-        - tipo de comida
-        Responde en formato JSON"""
+        system_prompt = """Eres un asistente que extrae preferencias gastronómicas.
+        IMPORTANTE: Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido, sin texto adicional.
         
-        response = self.client.chat(
-            model="mistral-medium",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ]
-        )
+        Formato requerido:
+        {
+            "cuisine": "<tipo de cocina o 'any'>",
+            "price_range": "<economic/moderate/luxury>",
+            "diet": "<vegetarian/vegan/gluten_free/none>",
+            "meal": "<breakfast/lunch/dinner/snacks/drinks/any>"
+        }
+        
+        Si una preferencia no está clara en la consulta, usa 'any' o 'none' como valor por defecto."""
+        
         try:
-            preferences = eval(response.choices[0].message.content)
-            self.beliefs["preferences"] = preferences
-            return preferences
-        except:
-            return {}
+            response = self.client.chat(
+                model="mistral-medium",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Extrae las preferencias gastronómicas de: {query}"}
+                ]
+            )
+            
+            # Obtener la respuesta y limpiarla
+            response_text = response.choices[0].message.content.strip()
+            
+            # Depuración
+            print(f"Respuesta del modelo: {response_text}")
+            
+            # Si la respuesta está envuelta en ```, removerlos
+            if response_text.startswith("```") and response_text.endswith("```"):
+                response_text = response_text[3:-3].strip()
+            
+            # Si la respuesta está envuelta en ```json, removerlos
+            if response_text.startswith("```json") and response_text.endswith("```"):
+                response_text = response_text[7:-3].strip()
+            
+            # Intentar parsear la respuesta como JSON
+            preferences = json.loads(response_text)
+            
+            # Validar y establecer valores por defecto
+            default_preferences = {
+                "cuisine": "any",
+                "price_range": "moderate",
+                "diet": "none",
+                "meal": "any"
+            }
+            
+            valid_preferences = default_preferences.copy()
+            
+            # Validar cuisine
+            if "cuisine" in preferences and preferences["cuisine"].lower() in [c.lower() for c in self.beliefs["cuisine_types"] + ["any"]]:
+                valid_preferences["cuisine"] = preferences["cuisine"].lower()
+            
+            # Validar price_range
+            if "price_range" in preferences and preferences["price_range"].lower() in self.beliefs["price_ranges"]:
+                valid_preferences["price_range"] = preferences["price_range"].lower()
+            
+            # Validar diet
+            if "diet" in preferences and preferences["diet"].lower() in [d.lower() for d in self.beliefs["special_diets"] + ["none"]]:
+                valid_preferences["diet"] = preferences["diet"].lower()
+            
+            # Validar meal
+            if "meal" in preferences and preferences["meal"].lower() in [m.lower() for m in self.beliefs["meal_types"] + ["any"]]:
+                valid_preferences["meal"] = preferences["meal"].lower()
+            
+            self.beliefs["preferences"] = valid_preferences
+            return valid_preferences
+            
+        except json.JSONDecodeError as e:
+            print(f"Error decodificando JSON: {e}")
+            print(f"Texto que causó el error: {response_text}")
+            return {
+                "cuisine": "any",
+                "price_range": "moderate",
+                "diet": "none",
+                "meal": "any"
+            }
+        except Exception as e:
+            print(f"Error extracting preferences: {e}")
+            return {
+                "cuisine": "any",
+                "price_range": "moderate",
+                "diet": "none",
+                "meal": "any"
+            }

@@ -12,6 +12,7 @@ class DynamicCrawler:
     def update_sources(self, urls):
         """Ejecuta crawling para URLs específicas"""
         with self.lock:
+            urls = [url['url'] for url in urls]
             d = self.runner.crawl(self.spider, start_urls=urls)
             d.addCallback(self._crawl_callback)
             

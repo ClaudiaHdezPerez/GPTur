@@ -13,8 +13,6 @@ from agents.gastronomy_agent import GastronomyAgent
 from agents.historic_agent import HistoricAgent
 from agents.lodging_agent import LodgingAgent
 from agents.nightlife_agent import NightlifeAgent
-import time
-import os
 from pathlib import Path
 
 # Configuración de la página
@@ -119,5 +117,5 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
     else:
         response_text = str(response)
     
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.messages.append({"role": "assistant", "content": response_text})
     st.rerun()
