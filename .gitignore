@@ -12,6 +12,10 @@ __pycache__/
 *.fls
 *.gz
 *.out
+*.bcf
+*.xml
+# *.bbl
+*.blg
 
 # Distribution / packaging
 .Python

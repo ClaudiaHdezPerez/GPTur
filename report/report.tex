@@ -12,8 +12,9 @@
 \usepackage{appendix}
 \usepackage{listings}
 \usepackage[spanish]{babel}
-\usepackage[style=splncs04, backend=biber]{biblatex}
-\addbibresource{references.bib} 
+\usepackage[backend=biber,style=numeric]{biblatex}
+\addbibresource{./references.bib}
+
 
 % \usepackage[showframe]{geometry} % Solo para verificación, quitar en versión final
 \usepackage{calc}
@@ -42,6 +43,7 @@
 \newcommand{\tabref}[1]{\hyperref[#1]{Tab.~\ref*{#1}}}
 \newcommand{\secref}[1]{\hyperref[#1]{Sec.~\ref*{#1}}}
 \newcommand{\AlgRef}[1]{\hyperref[#1]{Alg.~\ref{#1}}}
+\renewcommand{\refname}{Referencias}
 
 
 % Centrado completo del contenido (122mm x 193mm)
@@ -137,7 +139,7 @@ Está compuesto por una entrada, un recuperador, un generador y una salida. La i
 \end{enumerate}
 
 \vspace{\baselineskip}
-\subsection{Arquitectura Multiagente}
+\subsection{Arquitectura Multiagente} \cite{Garcia2020}
 
 Un sistema multiagente está constituido por un conjunto de agentes, cada uno con determinadas capacidades y recursos para la solución de problemas inherentemente distribuidos. Los agentes interactúan entre ellos, determinan y coordinan tareas a realizar según sus capacidades y recursos.
 
@@ -286,7 +288,8 @@ Estas tareas permiten que el sistema interprete correctamente las necesidades de
 
 \vspace{\baselineskip}
 
-\subsection{Metaheurística y Problema de Satisfacción de Restricciones}
+\subsection{Metaheurística y Problema de Satisfacción de Restricciones} \cite{Talbi2009}
+
 
 %...
 
@@ -511,12 +514,11 @@ No obstante, se proponen algunas soluciones para lograrlas:
 Por todo lo expuesto y más, GPTur ha llegado a ser una experiencia magnífica para cada uno de sus desarrolladores.
 
 \vspace{\baselineskip}
-\section{Referencias}
 \printbibliography
 
 % ===== INICIO DE APÉNDICES =====
 \newpage
-\section{Apéndices}
+\section*{Apéndices}
 A continuación se muestran los apéndices del informe.
 \appendix
 

@@ -16,5 +16,79 @@
   {}
 \endgroup
 
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global/global}
+    \entry{Garcia2020}{book}{}{}
+      \name{author}{3}{}{%
+        {{hash=607326ac662c8eef616d951cd591e84b}{%
+           family={García\bibnamedelima Garrido},
+           familyi={G\bibinitperiod\bibinitdelim G\bibinitperiod},
+           given={Luciano},
+           giveni={L\bibinitperiod}}}%
+        {{hash=6855a3c668a0bd3279d64a8da04eec57}{%
+           family={Martí\bibnamedelima Orosa},
+           familyi={M\bibinitperiod\bibinitdelim O\bibinitperiod},
+           given={Luis},
+           giveni={L\bibinitperiod}}}%
+        {{hash=f672e1ca162cd052bee42f70edeed8b0}{%
+           family={Pérez\bibnamedelima Sánchez},
+           familyi={P\bibinitperiod\bibinitdelim S\bibinitperiod},
+           given={Luis},
+           giveni={L\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {La Habana, Cuba}%
+      }
+      \list{publisher}{1}{%
+        {Facultad de Matemática y Computación, Universidad de la Habana}%
+      }
+      \strng{namehash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{fullhash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{fullhashraw}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{bibnamehash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{authorbibnamehash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{authornamehash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{authorfullhash}{ddc552599b27955fa7ee10fdc1a415d9}
+      \strng{authorfullhashraw}{ddc552599b27955fa7ee10fdc1a415d9}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Temas de Simulación}
+    \endentry
+    \entry{Talbi2009}{book}{}{}
+      \name{author}{1}{}{%
+        {{hash=d6716852db8d41b230dbec1231e7bb12}{%
+           family={Talbi},
+           familyi={T\bibinitperiod},
+           given={El-Ghazali},
+           giveni={E\bibinithyphendelim G\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Hoboken, NJ}%
+      }
+      \list{publisher}{1}{%
+        {Wiley}%
+      }
+      \strng{namehash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{fullhash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{fullhashraw}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{bibnamehash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{authorbibnamehash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{authornamehash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{authorfullhash}{d6716852db8d41b230dbec1231e7bb12}
+      \strng{authorfullhashraw}{d6716852db8d41b230dbec1231e7bb12}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{isbn}{978-0-470-27858-1}
+      \field{series}{Wiley Series on Parallel and Distributed Computing}
+      \field{title}{Metaheuristics: From Design to Implementation}
+      \field{year}{2009}
+    \endentry
+  \enddatalist
+\endrefsection
 \endinput
 
