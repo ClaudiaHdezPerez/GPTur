@@ -10,7 +10,15 @@ class DynamicCrawler:
         self.spider = CubaTourismSpider
 
     def update_sources(self, urls):
-        """Ejecuta crawling para URLs específicas"""
+        """
+        Execute crawling operations for specific URLs.
+
+        Args:
+            urls (list): List of dictionaries containing URLs to crawl
+
+        Note:
+            Starts the reactor in a separate thread if not already running
+        """
         with self.lock:
             urls = [url['url'] for url in urls]
             d = self.runner.crawl(self.spider, start_urls=urls)
@@ -21,5 +29,14 @@ class DynamicCrawler:
                                 args=(False,)).start()
 
     def _crawl_callback(self, result):
+        """
+        Callback function executed when crawling is completed.
+
+        Args:
+            result: The crawling operation result
+
+        Returns:
+            The crawling operation result
+        """
         print("Crawling completado. Datos actualizados.")
         return result

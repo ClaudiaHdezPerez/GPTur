@@ -10,17 +10,14 @@ import chromadb
 class VectorStorage:
     def __init__(self):
         self.embeddings = get_embeddings()
-        self.collection_name = "cuba_tourism"  # Nombre fijo
+        self.collection_name = "cuba_tourism"
         self.persist_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "vector_db", "chroma_data"))
         
-        # Configuración del cliente Chroma
         self.client = chromadb.PersistentClient(path=self.persist_dir)
         
-        # Inicialización de la colección
         self._initialize_collection()
         
-        # Inicialización de LangChain Chroma wrapper
         self.db = Chroma(
             client=self.client,
             collection_name=self.collection_name,
@@ -31,11 +28,12 @@ class VectorStorage:
         self.sources = self._load_sources()
     
     def _initialize_collection(self):
-        """Inicializa o recupera la colección"""
+        """
+        Initialize or retrieve the Chroma collection.
+        Creates a new collection if it doesn't exist or adds a dummy document if empty.
+        """
         try:
-            # Intenta obtener la colección existente
             collection = self.client.get_collection(self.collection_name)
-            # Si no hay documentos, agregamos uno dummy
             if collection.count() == 0:
                 collection.add(
                     documents=["dummy"],
@@ -43,7 +41,6 @@ class VectorStorage:
                     ids=["dummy_id"]
                 )
         except Exception as e:
-            # Si la colección no existe, la creamos
             print(f"Creando nueva colección: {str(e)}")
             if (not any([x for x in self.client.list_collections() if x.name == self.collection_name])):
                 self.client.create_collection(
@@ -52,7 +49,10 @@ class VectorStorage:
                 )
 
     def update_index(self):
-        """Actualiza el índice con nuevos documentos"""
+        """
+        Update the vector index with new documents from the JSON data file.
+        Loads and processes normalized data, adding new documents to the collection.
+        """
         json_path = os.path.abspath(os.path.join(
             os.path.dirname(__file__), 
             "..", 
@@ -73,7 +73,12 @@ class VectorStorage:
             print(f"Índice actualizado con {len(documents)} documentos")
 
     def get_documents(self):
-        """Obtiene todos los documentos de la colección"""
+        """
+        Retrieve all documents from the collection.
+
+        Returns:
+            list: List of Document objects containing page content and metadata
+        """
         try:
             collection = self.client.get_collection(self.collection_name)
             chroma_data = collection.get()
@@ -89,26 +94,37 @@ class VectorStorage:
             return []
         
     def similarity_search(self, query, k=4):
-        """Búsqueda por similitud"""
+        """
+        Perform similarity search on the document collection.
+
+        Args:
+            query (str): The search query
+            k (int, optional): Number of results to return. Defaults to 4
+
+        Returns:
+            list: Top k similar documents
+        """
         return self.db.similarity_search(query, k=k)
         
     def reload_data(self):
-        """Recarga completamente los datos desde el archivo JSON"""
+        """
+        Completely reload data from the JSON file.
+        Deletes existing collection and recreates it with fresh data.
+        
+        Raises:
+            FileNotFoundError: If the JSON data file is not found
+            Exception: For other errors during reload
+        """
         try:
-            # Eliminar colección existente
             self.client.delete_collection(self.collection_name)
-            
-            # Crear nueva colección
             self._initialize_collection()
             
-            # Recrear el wrapper de LangChain
             self.db = Chroma(
                 client=self.client,
                 collection_name=self.collection_name,
                 embedding_function=self.embeddings
             )
             
-            # Cargar datos
             json_path = os.path.abspath(os.path.join(
                 os.path.dirname(__file__), 
                 "..", 
@@ -137,7 +153,12 @@ class VectorStorage:
             raise
         
     def _load_sources(self):
-        """Carga las fuentes desde el archivo JSON"""
+        """
+        Load source URLs from the JSON file.
+
+        Returns:
+            list: List of source URLs or empty list if file doesn't exist
+        """
         sources_path = Path(__file__).parent.parent / "data" / self._sources_file
         if sources_path.exists():
             with open(sources_path, "r", encoding="utf-8") as f:
@@ -145,17 +166,30 @@ class VectorStorage:
         return [] 
         
     def get_sources(self):
-        """Retorna la lista de URLs fuente para el crawler"""
+        """
+        Get the list of source URLs for the crawler.
+
+        Returns:
+            list: List of source URLs
+        """
         return self.sources
 
     def add_source(self, url):
-        """Agrega una nueva fuente a la lista"""
+        """
+        Add a new source URL to the list.
+
+        Args:
+            url (str): URL to add as a source
+        """
         if url not in self.sources:
             self.sources.append(url)
             self._save_sources()
 
     def _save_sources(self):
-        """Guarda las fuentes en el archivo JSON"""
+        """
+        Save the current list of sources to the JSON file.
+        Updates the sources file with any new additions.
+        """
         sources_path = Path(__file__).parent.parent / "data" / self._sources_file
         with open(sources_path, "w", encoding="utf-8") as f:
             json.dump(self.sources, f, indent=2)

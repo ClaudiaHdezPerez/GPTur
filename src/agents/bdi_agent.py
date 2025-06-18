@@ -7,39 +7,39 @@ class BDIAgent:
         self.vector_db = vector_db
         self.client = MistralClient(api_key="XEV0fCx3MqiG9HqVkGc4Hy5qyD3WwPHr")
         
-        # Componentes BDI
-        self.beliefs = {"context": []}  # B: Conjunto de creencias
-        self.desires = []               # D: Conjunto de deseos
-        self.intentions = []            # I: Conjunto de intenciones
-        self.plans = {}                 # P: Conjunto de planes disponibles
+        self.beliefs = {"context": []}
+        self.desires = []
+        self.intentions = []
+        self.plans = {}
         
     def action(self, percept):
         """
-        Implementación del algoritmo BDI según el pseudocódigo:
+        Execute the BDI algorithm based on the pseudocode:
         function action(p : P): A
             B = brf(B,p)
             D = options(B,D,I)
             I = filter(B,D,I)
             return execute(I)
+
+        Args:
+            percept: The perception input for the agent
+
+        Returns:
+            The result of executing the selected intentions
         """
-        # Paso 1: Actualizar creencias (belief revision function)
-        print("Percept", percept)
         self.brf(percept)
-        
-        print("Beliefs:", self.beliefs)
-        
-        # Paso 2: Generar opciones basadas en B,D,I
         options = self.generate_options()
-        
-        # Paso 3: Filtrar y seleccionar intenciones
         self.intentions = self.filter(options)
         
-        # Paso 4: Ejecutar intenciones y retornar acción
         return self.execute()
         
     def brf(self, percept):
-        """Belief Revision Function
-        Actualiza las creencias basado en la percepción"""
+        """
+        Belief Revision Function that updates the agent's beliefs based on new perception.
+
+        Args:
+            percept: Can be either a dictionary of beliefs or a tuple containing (user_query, chat_history)
+        """
         if isinstance(percept, dict):
             self.beliefs.update(percept)
         elif isinstance(percept, tuple) and len(percept) == 2:
@@ -51,8 +51,12 @@ class BDIAgent:
             })
             
     def generate_options(self) -> list:
-        """Options: D = options(B,D,I)
-        Genera opciones basadas en creencias, deseos e intenciones"""
+        """
+        Generate options based on current beliefs, desires, and intentions.
+
+        Returns:
+            list: A list of viable plans based on current desires
+        """
         options = []
         for desire in self.desires:
             plan = self.plans.get(desire)
@@ -62,13 +66,28 @@ class BDIAgent:
         return options
         
     def _is_plan_relevant(self, plan) -> bool:
-        """Verifica si un plan es relevante dado el estado actual
-        Debe ser implementado por los agentes específicos"""
+        """
+        Check if a plan is relevant given the current state.
+
+        Args:
+            plan: The plan to evaluate
+
+        Returns:
+            bool: True if the plan is relevant, False otherwise
+        """
+        # Debe ser implementado por los agentes específicos
         pass
         
     def filter(self, options: list) -> list:
-        """Filter: I = filter(B,D,I)
-        Filtra las opciones para determinar nuevas intenciones"""
+        """
+        Filter options to determine new intentions based on achievability and compatibility.
+
+        Args:
+            options: List of potential plans
+
+        Returns:
+            list: Filtered list of intentions
+        """
         filtered_intentions = []
         for option in options:
             if self._is_achievable(option) and self._is_compatible(option):
@@ -77,18 +96,38 @@ class BDIAgent:
         return filtered_intentions
         
     def _is_achievable(self, plan) -> bool:
-        """Verifica si un plan es alcanzable
-        Debe ser implementado por los agentes específicos"""
+        """
+        Verify if a plan is achievable given current circumstances.
+
+        Args:
+            plan: The plan to evaluate
+
+        Returns:
+            bool: True if the plan is achievable, False otherwise
+        """
+        # Debe ser implementado por los agentes específicos
         pass
         
     def _is_compatible(self, plan) -> bool:
-        """Verifica si un plan es compatible con las intenciones actuales
-        Debe ser implementado por los agentes específicos"""
+        """
+        Check if a plan is compatible with current intentions.
+
+        Args:
+            plan: The plan to evaluate
+
+        Returns:
+            bool: True if the plan is compatible, False otherwise
+        """
+        # Debe ser implementado por los agentes específicos
         pass
         
     def execute(self):
-        """Execute: return execute(I)
-        Ejecuta las intenciones seleccionadas y retorna la acción"""
+        """
+        Execute the selected intentions and return the resulting action.
+
+        Returns:
+            The result of performing the selected action, or None if no action is available
+        """
         if not self.intentions:
             return None
             
@@ -96,22 +135,42 @@ class BDIAgent:
             action = self._get_next_action(intention)
             if action:
                 result = self._perform_action(action)
-                # Si el agente es especializado (tiene specialization) y tiene blackboard
                 if hasattr(self, 'specialization') and hasattr(self, 'blackboard') and result:
                     self.blackboard.write(self.name, result)
                 return result
         return None
         
     def _get_next_action(self, intention):
-        """Determina la siguiente acción para una intención
-        Debe ser implementado por los agentes específicos"""
+        """
+        Determine the next action for a given intention.
+
+        Args:
+            intention: The intention to process
+
+        Returns:
+            The next action to be performed
+        """
+        # Debe ser implementado por los agentes específicos
         pass
         
     def _perform_action(self, action):
-        """Ejecuta una acción específica
-        Debe ser implementado por los agentes específicos"""
+        """
+        Execute a specific action.
+
+        Args:
+            action: The action to perform
+
+        Returns:
+            The result of performing the action
+        """
+        # Debe ser implementado por los agentes específicos
         pass
         
     def check_data_freshness(self):
-        """Verifica la frescura de los datos"""
+        """
+        Check the freshness of the data in the session state.
+
+        Returns:
+            The timestamp of the last update from session state
+        """
         return st.session_state.get("last_update", 0)

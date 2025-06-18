@@ -7,23 +7,20 @@ class LodgingAgent(BDIAgent):
         self.specialization = "lodging"
         self.blackboard = Blackboard()
         
-        # Inicializar creencias específicas de alojamiento
         self.beliefs = {
             "accommodation_types": ["hotel", "hostal", "casa_particular", "resort"],
             "locations": {},
             "amenities": [],
             "price_ranges": ["economic", "moderate", "luxury"],
-            "has_results": False,  # Indicador de si tenemos resultados de búsqueda
-            "needs_recommendations": False  # Indicador de si debemos generar recomendaciones
+            "has_results": False, 
+            "needs_recommendations": False 
         }
         
-        # Definir deseos del agente de alojamiento
         self.desires = [
-            "buscar_alojamientos",  # Deseo principal: encontrar opciones
-            "recomendar_hospedaje",  # Deseo secundario: dar recomendaciones personalizadas
+            "buscar_alojamientos", 
+            "recomendar_hospedaje", 
         ]
         
-        # Definir planes disponibles con precondiciones más específicas
         self.plans = {
             "buscar_alojamientos": {
                 "objetivo": "encontrar_opciones",
@@ -38,34 +35,48 @@ class LodgingAgent(BDIAgent):
         }
 
     def search_accommodations(self, query, relevant_docs=None):
-        """Search for accommodations matching the query"""
+        """
+        Search for accommodations matching the provided query.
+
+        Args:
+            query (str): The search query string
+            relevant_docs (list, optional): Pre-filtered relevant documents
+
+        Returns:
+            str: Formatted string containing accommodation search results
+        """
         if relevant_docs is None:
             relevant_docs = self.vector_db.similarity_search(
                 self._build_accommodation_query(query)
             )
             
-        # Process the relevant documents
         processed_results = []
         for doc in relevant_docs:
             if any(acc_type in doc.page_content.lower() for acc_type in self.beliefs["accommodation_types"]):
                 processed_results.append(doc.page_content)
                 
-        # Classify the results
         classified_results = self._classify_accommodations(processed_results)
         
-        # Update beliefs
-        location = query.split()[0]  # Simple location extraction
+        location = query.split()[0] 
         if location not in self.beliefs["locations"]:
             self.beliefs["locations"][location] = classified_results
         
-        # Actualizar estado de las creencias
         self.beliefs["has_results"] = bool(classified_results)
         self.beliefs["needs_recommendations"] = True
         
         return self._format_accommodation_results(classified_results)
         
     def _build_accommodation_query(self, location, preferences=None):
-        """Build optimized search query based on location and preferences"""
+        """
+        Build an optimized search query based on location and user preferences.
+
+        Args:
+            location (str): The target location for accommodation search
+            preferences (list, optional): List of user preferences
+
+        Returns:
+            str: The constructed search query
+        """
         query_parts = [f"accommodations in {location}"]
         
         if preferences:
@@ -80,7 +91,15 @@ class LodgingAgent(BDIAgent):
         return " ".join(query_parts)
 
     def _classify_accommodations(self, results):
-        """Classify accommodation results by type"""
+        """
+        Classify accommodation results by type (hotels, hostals, etc.).
+
+        Args:
+            results (list): List of accommodation search results
+
+        Returns:
+            dict: Accommodations classified by type
+        """
         classified = {
             "hotels": [],
             "hostals": [],
@@ -101,7 +120,15 @@ class LodgingAgent(BDIAgent):
         return classified
 
     def _format_accommodation_results(self, classified_results):
-        """Format results in a user-friendly way"""
+        """
+        Format classified accommodation results into a user-friendly string.
+
+        Args:
+            classified_results (dict): Accommodations classified by type
+
+        Returns:
+            str: Formatted accommodation listings
+        """
         formatted = []
         
         for acc_type, accommodations in classified_results.items():
@@ -113,7 +140,17 @@ class LodgingAgent(BDIAgent):
         return "\n".join(formatted)
 
     def get_accommodation_suggestion(self, location, preferences, budget):
-        """Get personalized accommodation suggestions"""
+        """
+        Get personalized accommodation suggestions based on user preferences.
+
+        Args:
+            location (str): Target location
+            preferences (list): User accommodation preferences
+            budget (str): User's budget level
+
+        Returns:
+            str: Personalized accommodation recommendation
+        """
         results = self.search_accommodations(location)
         
         suggestion_prompt = f"""
@@ -136,11 +173,17 @@ class LodgingAgent(BDIAgent):
         return suggestion
             
     def get_recommendations(self, destination):
-        """Get lodging recommendations for a specific destination"""
-        # Primero buscar alojamientos
+        """
+        Generate comprehensive lodging recommendations for a specific destination.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            str: Detailed accommodation recommendations with ratings and descriptions
+        """
         lodging_results = self.search_accommodations(destination)
         
-        # Preparar el prompt para el LLM
         system_prompt = f"""Basándote en la siguiente información sobre alojamientos en {destination},
         genera una lista de los 5-10 mejores lugares con este formato para cada uno:
         - Nombre del alojamiento
@@ -161,15 +204,31 @@ class LodgingAgent(BDIAgent):
         return response.choices[0].message.content
     
     def _is_plan_relevant(self, plan) -> bool:
-        """Verifica si un plan es relevante para el estado actual"""
+        """
+        Check if a plan is relevant for the current state.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if the plan's objective matches current beliefs, False otherwise
+        """
         if plan["objetivo"] == "encontrar_opciones":
             return not self.beliefs.get("has_results", False)
         elif plan["objetivo"] == "dar_recomendaciones":
-            return self.beliefs.get("has_results", False) and self.beliefs.get("needs_recomendations", False)
+            return self.beliefs.get("has_results", False) and self.beliefs.get("needs_recomendaciones", False)
         return False
 
     def _check_precondition(self, precondition) -> bool:
-        """Verifica una precondición específica"""
+        """
+        Verify if a specific precondition is met.
+
+        Args:
+            precondition (str): The precondition to check
+
+        Returns:
+            bool: True if precondition is met, False otherwise
+        """
         if precondition == "tiene_ubicacion":
             return "destination" in self.beliefs or "current_query" in self.beliefs
         elif precondition == "tiene_preferencias":
@@ -181,26 +240,57 @@ class LodgingAgent(BDIAgent):
         elif precondition == "no_tiene_resultados":
             return not self.beliefs.get("has_results", False)
         elif precondition == "necesita_recomendaciones":
-            return self.beliefs.get("needs_recomendations", False)
+            return self.beliefs.get("needs_recomendaciones", False)
         return False
 
     def _is_achievable(self, plan) -> bool:
-        """Verifica si un plan es alcanzable según las precondiciones"""
+        """
+        Check if a plan is achievable based on its preconditions.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if all preconditions are met, False otherwise
+        """
         return all(self._check_precondition(pre) for pre in plan["precondiciones"])
 
     def _is_compatible(self, plan) -> bool:
-        """Verifica si un plan es compatible con las intenciones actuales"""
-        # Todos los planes de alojamiento son compatibles entre sí
+        """
+        Check if a plan is compatible with current intentions.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if the plan is compatible, False otherwise
+        """
         return True
 
     def _get_next_action(self, intention) -> str:
-        """Determina la siguiente acción para una intención"""
+        """
+        Determine the next action for a given intention.
+
+        Args:
+            intention (dict): The intention to process
+
+        Returns:
+            str: The next action to be performed or None
+        """
         if not intention.get("acciones"):
             return None
         return intention["acciones"][0]
 
     def _perform_action(self, action):
-        """Ejecuta una acción específica"""
+        """
+        Execute a specific action based on the current beliefs and intentions.
+
+        Args:
+            action (str): The action to perform
+
+        Returns:
+            str: Result of the action or None if action cannot be performed
+        """
         if action == "buscar_en_db":
             query = self.beliefs.get("current_query", self.beliefs.get("destination", ""))
             return self.search_accommodations(query)
@@ -216,9 +306,15 @@ class LodgingAgent(BDIAgent):
         return None
 
     def get_recommendations(self, destination):
-        """Obtiene recomendaciones usando el ciclo BDI"""
-        # Crear percepción con el destino
+        """
+        Get recommendations using the BDI cycle.
+
+        Args:
+            destination (str): Target destination for recommendations
+
+        Returns:
+            str: Generated recommendations based on the BDI cycle execution
+        """
         percept = {"destination": destination}
         
-        # Ejecutar ciclo BDI y obtener acción
         return self.action(percept)

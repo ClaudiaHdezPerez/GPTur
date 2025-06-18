@@ -18,12 +18,10 @@ class GuideAgent(BDIAgent):
     def __init__(self, vector_db):
         super().__init__("GuideBot", vector_db)
         
-        # Definir deseos base del agente
         self.desires = [
             "responder_consultas"
         ]
         
-        # Definir planes disponibles
         self.plans = {
             "responder_consultas": {
                 "objetivo": "generar_respuesta",
@@ -37,34 +35,57 @@ class GuideAgent(BDIAgent):
         self.stop_event = Event()
         self.nlp_processor = NLPProcessor()
         
-        # Initialize specialized agents
         self.specialized_agents = {
             "lodging": LodgingAgent("LodgingBot", vector_db),
             "historic": HistoricAgent("HistoricBot", vector_db),
             "nightlife": NightlifeAgent("NightlifeBot", vector_db),
             "gastronomy": GastronomyAgent("GastronomyBot", vector_db)
         }
-        # Initialize thread pool with daemon threads
+
         self.thread_pool = ThreadPoolExecutor(
             max_workers=len(self.specialized_agents),
             thread_name_prefix="GPTur_Agent"
         )
         
     def _is_plan_relevant(self, plan) -> bool:
-        """Verifica si un plan es relevante para el estado actual"""
+        """
+        Check if a plan is relevant for the current state.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if the plan's objective matches current beliefs, False otherwise
+        """
         if plan["objetivo"] == "generar_respuesta":
             return "current_query" in self.beliefs
         return False
 
     def _is_achievable(self, plan) -> bool:
-        """Verifica si un plan es alcanzable según las precondiciones"""
+        """
+        Verify if a plan is achievable based on its preconditions.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if all preconditions are met, False otherwise
+        """
         for precondition in plan["precondiciones"]:
             if not self._check_precondition(precondition):
                 return False
         return True
 
     def _check_precondition(self, precondition) -> bool:
-        """Verifica una precondición específica"""
+        """
+        Check if a specific precondition is satisfied.
+
+        Args:
+            precondition (str): The precondition to verify
+
+        Returns:
+            bool: True if the precondition is met, False otherwise
+        """
         if precondition == "tiene_consulta":
             return "current_query" in self.beliefs
         elif precondition == "datos_disponibles":
@@ -73,7 +94,6 @@ class GuideAgent(BDIAgent):
 
     def _is_compatible(self, plan) -> bool:
         """Verifica si un plan es compatible con las intenciones actuales"""
-        # En este caso, todos los planes son compatibles entre sí
         return True
 
     def _get_next_action(self, intention) -> str:
@@ -81,7 +101,6 @@ class GuideAgent(BDIAgent):
         if not intention.get("acciones"):
             return None
             
-        # Retornar la primera acción disponible
         return intention["acciones"][0]
 
     def _perform_action(self, action):
@@ -91,20 +110,33 @@ class GuideAgent(BDIAgent):
         return None
     
     def trigger_crawler(self):
+        """
+        Trigger the web crawler to update information sources and refresh the vector database.
+        Updates the last update timestamp in the session state.
+        """
         crawler = DynamicCrawler()
         crawler.update_sources(self.vector_db.get_sources())
         self.vector_db.reload_data()
         st.session_state.last_update = time.time()
         
     def process_agent_query(self, agent : BDIAgent, query, relevant_docs):
-        """Process query for a specific agent in a thread-safe manner"""
+        """
+        Process a query using a specific specialized agent in a thread-safe manner.
+
+        Args:
+            agent (BDIAgent): The specialized agent to handle the query
+            query (str): The user's query
+            relevant_docs (str): Relevant context documents
+
+        Returns:
+            Any: The agent's response or None if processing fails
+        """
         if self.stop_event.is_set():
             return None
         
         percept = (query, relevant_docs)
             
         try:
-            # El agente procesa la consulta y escribe directamente en la pizarra
             results = agent.action(percept)
             self.blackboard.write(agent.name, results)
             return results
@@ -114,7 +146,13 @@ class GuideAgent(BDIAgent):
             
     def preprocess_query(self, query: str):
         """
-        Preprocesses the query using NLP techniques for better understanding and context matching
+        Preprocess a user query using NLP techniques for enhanced understanding.
+
+        Args:
+            query (str): The raw user query
+
+        Returns:
+            dict: Processed query information including text, entities, keywords, and sentiment
         """
         processed_text = self.nlp_processor.preprocess_text(query)
         entities = self.nlp_processor.extract_entities(query)
@@ -129,32 +167,39 @@ class GuideAgent(BDIAgent):
         }
 
     def generate_response(self):
-        # Create a unique problem ID for this query
+        """
+        Generate a comprehensive response by coordinating multiple specialized agents.
+        
+        The method:
+        1. Creates a unique problem ID
+        2. Analyzes the query using NLP
+        3. Retrieves relevant documents
+        4. Coordinates specialized agents
+        5. Combines their contributions
+        
+        Returns:
+            str: The final consolidated response
+        """
         problem_id = str(uuid.uuid4())
         self.blackboard.set_current_problem(problem_id)
         query = self.beliefs["current_query"]
         self.stop_event.clear()
 
-        # Preprocess the query using NLP
         query_analysis = self.preprocess_query(query)
         
-        # Use processed text and keywords for better context matching
         search_query = f"{query_analysis['processed_text']} {' '.join(query_analysis['keywords'])}"
         
-        # Get relevant documents using enhanced search query
         relevant_docs = self.vector_db.similarity_search(search_query)
         document_text = _convert_docs_to_string(relevant_docs)
 
-        # Submit tasks to thread pool
         future_to_agent = {
             self.thread_pool.submit(
                 self.process_agent_query, agent, query, document_text
             ): agent.specialization for agent in self.specialized_agents.values()
         }
 
-        # Wait for all tasks to complete or handle timeouts
         try:
-            for future in as_completed(future_to_agent, timeout=120):  # 2 minutes timeout
+            for future in as_completed(future_to_agent, timeout=120):
                 agent_type = future_to_agent[future]
                 try:
                     future.result()
@@ -162,14 +207,12 @@ class GuideAgent(BDIAgent):
                     print(f"Agent {agent_type} generated an exception: {str(e)}")
         except TimeoutError:
             print("Some agents did not complete in time")
-            self.stop_event.set()  # Signal threads to stop
+            self.stop_event.set()
 
-        # Collect all contributions from the blackboard
         contributions = self.blackboard.read(problem_id)
-          # Generate comprehensive response using all contributions and NLP insights
+
         context = "\n".join([f"{c['agent']}: {c['contribution']}" for c in contributions])
         if not contributions:
-            # Fallback if no agent could provide specific information
             response = self.client.chat(
                 model="mistral-medium",
                 messages=[{
@@ -202,11 +245,13 @@ class GuideAgent(BDIAgent):
                 }]
             )
         
-        # Clean up the blackboard
         self.blackboard.clear_problem(problem_id)
         return response.choices[0].message.content
 
     def __del__(self):
-        """Cleanup thread pool on deletion"""
+        """
+        Cleanup method to ensure proper shutdown of thread pool when the agent is destroyed.
+        Sets the stop event and performs an orderly shutdown of all threads.
+        """
         self.stop_event.set()
         self.thread_pool.shutdown(wait=True)

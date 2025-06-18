@@ -1,7 +1,6 @@
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from langchain_community.retrievers import BM25Retriever
-import streamlit as st  # Si usas Streamlit para secrets
 import json
 import os
 from datetime import datetime
@@ -16,6 +15,15 @@ class GapDetector:
         self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     def _load_json_file(self, filepath):
+        """
+        Load data from a JSON file.
+
+        Args:
+            filepath (str): Path to the JSON file
+
+        Returns:
+            list/dict: Loaded JSON data or empty list if file not found
+        """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -23,10 +31,26 @@ class GapDetector:
             return []
 
     def _save_json_file(self, filepath, data):
+        """
+        Save data to a JSON file.
+
+        Args:
+            filepath (str): Path to save the JSON file
+            data: Data to be saved in JSON format
+        """
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, ensure_ascii=False, indent=4, fp=f)
 
     def _fetch_webpage_info(self, url):
+        """
+        Fetch and parse information from a webpage.
+
+        Args:
+            url (str): URL of the webpage to fetch
+
+        Returns:
+            dict: Structured information from the webpage or None if fetch fails
+        """
         try:
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             response = requests.get(url, headers=headers, timeout=10)
@@ -51,10 +75,18 @@ class GapDetector:
             return None
 
     def check_accuracy(self, query, response):
-        # Paso 1: Buscar documentos relevantes
+        """
+        Check if a response needs updating based on current knowledge.
+
+        Args:
+            query (str): Original user query
+            response (str): Response to validate
+
+        Returns:
+            bool: True if the response needs updating, False otherwise
+        """
         relevant_docs = self.bm25_retriever.get_relevant_documents(query)
 
-        # Paso 2: Crear prompt estructurado para Mistral
         verification_prompt = f"""
         Eres un validador de información turística. Evalúa si la respuesta dada necesita actualización 
         basándote en el contexto proporcionado. Responde **solo con una palabra**: 
@@ -68,7 +100,6 @@ class GapDetector:
         ¿La respuesta está desactualizada o es incompleta? Responde: ACTUALIZAR o OK.
         """
 
-        # Paso 3: Llamar a Mistral AI
         messages = [
             ChatMessage(role="user", content=verification_prompt)
         ]
@@ -77,18 +108,26 @@ class GapDetector:
             api_response = self.client.chat(
                 model="mistral-small",
                 messages=messages,
-                temperature=0.0  # Máxima precisión
+                temperature=0.0 
             )
             verification_result = api_response.choices[0].message.content.strip().upper()
         except Exception as e:
             print(f"Error al validar: {e}")
-            verification_result = "OK"  # Default seguro
+            verification_result = "OK"
 
-        # Paso 4: Devolver decisión
         return "ACTUALIZAR" in verification_result
 
     def identify_outdated_sources(self, query, city=None):
-        # Si no se proporciona ciudad, intentar extraerla del query usando Mistral
+        """
+        Identify and update outdated information sources based on a query.
+
+        Args:
+            query (str): User query to analyze
+            city (str, optional): Specific city to focus on
+
+        Returns:
+            tuple: List of new sources and their webpage information
+        """
         if city is None:
             city_prompt = f"""
             Extrae el nombre de la ciudad de Cuba mencionada en este texto. 
@@ -109,11 +148,9 @@ class GapDetector:
                 print(f"Error al extraer ciudad: {e}")
                 city = "Cuba"
 
-        # Obtener documentos relevantes
         relevant_docs = self.vector_db.similarity_search(query, k=2)
         docs_content = "\n".join([doc.page_content for doc in relevant_docs])
 
-        # Crear prompt para Mistral AI solicitando enlaces actualizados
         prompt = f"""
         Basado en esta información turística sobre {city}:
         {docs_content}
@@ -129,7 +166,6 @@ class GapDetector:
         messages = [ChatMessage(role="user", content=prompt)]
 
         try:
-            # Obtener recomendaciones de Mistral
             api_response = self.client.chat(
                 model="mistral-small",
                 messages=messages,
@@ -138,27 +174,21 @@ class GapDetector:
 
             new_sources = json.loads(api_response.choices[0].message.content.strip())
 
-            # Cargar archivos JSON existentes
             sources_file = os.path.join(self.base_dir, 'src', 'data', 'sources.json')
             normalized_file = os.path.join(self.base_dir, 'src', 'data', 'processed', 'normalized_data.json')
 
             existing_sources = self._load_json_file(sources_file)
             normalized_data = self._load_json_file(normalized_file)
 
-            # Procesar cada nueva fuente
             for source in new_sources:
-                # Verificar si la URL ya existe
                 if not any(existing == source['url'] for existing in existing_sources):
-                    # Agregar a sources.json
                     existing_sources.append(source['url'])
 
-                    # Obtener información detallada y agregar a normalized_data.json
                     webpage_info = self._fetch_webpage_info(source['url'])
                     if webpage_info:
                         webpage_info['city'] = city.lower()
                         normalized_data.append(webpage_info)
 
-            # Guardar los archivos actualizados
             self._save_json_file(sources_file, existing_sources)
             self._save_json_file(normalized_file, normalized_data)
 

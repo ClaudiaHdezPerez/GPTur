@@ -8,7 +8,6 @@ class NightlifeAgent(BDIAgent):
         self.specialization = "nightlife"
         self.blackboard = Blackboard()
         
-        # Inicializar creencias específicas de vida nocturna
         self.beliefs = {
             "venues": {},
             "venue_types": [
@@ -29,25 +28,23 @@ class NightlifeAgent(BDIAgent):
             "price_ranges": ["economic", "moderate", "luxury"],
             "operating_hours": {
                 "standard": {
-                    "open": time(20, 0),  # 8:00 PM
-                    "close": time(2, 0)    # 2:00 AM
+                    "open": time(20, 0), 
+                    "close": time(2, 0) 
                 },
                 "late": {
-                    "open": time(22, 0),   # 10:00 PM
-                    "close": time(6, 0)    # 6:00 AM
+                    "open": time(22, 0),
+                    "close": time(6, 0)
                 }
             },
             "current_query": None,
             "destination": None
         }
         
-        # Definir deseos del agente de vida nocturna
         self.desires = [
-            "process_user_query",     # Procesar query para buscar lugares nocturnos
-            "recommend_nightlife"     # Proveer recomendaciones para un destino
+            "process_user_query",
+            "recommend_nightlife"
         ]
         
-        # Definir planes disponibles
         self.plans = {
             "process_user_query": {
                 "objetivo": "search_venues",
@@ -62,7 +59,15 @@ class NightlifeAgent(BDIAgent):
         }
         
     def _is_plan_relevant(self, plan) -> bool:
-        """Verifica si un plan es relevante para el estado actual"""
+        """
+        Check if a plan is relevant for the current state.
+
+        Args:
+            plan (dict): The plan to evaluate
+
+        Returns:
+            bool: True if the plan's objective matches current beliefs, False otherwise
+        """
         if plan["objetivo"] == "search_venues":
             return "current_query" in self.beliefs and self.beliefs["current_query"] is not None
         elif plan["objetivo"] == "provide_recommendations":
@@ -70,7 +75,15 @@ class NightlifeAgent(BDIAgent):
         return False
 
     def _check_precondition(self, precondition) -> bool:
-        """Verifica una precondición específica"""
+        """
+        Verify if a specific precondition is met.
+
+        Args:
+            precondition (str): The precondition to check
+
+        Returns:
+            bool: True if precondition is met, False otherwise
+        """
         if precondition == "has_query":
             return "current_query" in self.beliefs and self.beliefs["current_query"] is not None
         elif precondition == "has_destination":
@@ -94,31 +107,35 @@ class NightlifeAgent(BDIAgent):
     def _perform_action(self, action):
         """Ejecuta una acción específica"""
         if action == "search_nightlife":
-            # Buscar lugares nocturnos directamente con la query
             query = self.beliefs["current_query"]
             return self.search_nightlife(query)
             
         elif action == "get_recommendations":
-            # Obtener recomendaciones para un destino
             return self.get_recommendations(self.beliefs["destination"])
 
     def search_nightlife(self, query, relevant_docs=None):
-        """Search for nightlife venues matching the query"""
+        """
+        Search for nightlife venues matching the provided query.
+
+        Args:
+            query (str): The search query string
+            relevant_docs (list, optional): Pre-filtered relevant documents
+
+        Returns:
+            str: Formatted string containing nightlife venue search results
+        """
         if relevant_docs is None:
             relevant_docs = self.vector_db.similarity_search(
                 self._build_nightlife_query(query)
             )
             
-        # Process the relevant documents
         processed_results = []
         for doc in relevant_docs:
             if any(venue in doc.page_content.lower() for venue in self.beliefs["venue_types"]):
                 processed_results.append(doc.page_content)
                 
-        # Classify the results
         classified_venues = self._classify_venues(processed_results)
         
-        # Extract location using LLM
         system_prompt = """Extract the destination/location from this query. Return ONLY the location name, nothing else.
         If no location is found, return 'unknown'."""
         
@@ -132,14 +149,22 @@ class NightlifeAgent(BDIAgent):
         location = response.choices[0].message.content.strip()
         
         if location and location.lower() != 'unknown':
-            # Update beliefs with the extracted location
             if location not in self.beliefs["venues"]:
                 self.beliefs["venues"][location] = classified_venues
             
         return self._format_venue_results(classified_venues)
 
     def _build_nightlife_query(self, location, filters=None):
-        """Build optimized search query based on location and filters"""
+        """
+        Build an optimized search query based on location and filters.
+
+        Args:
+            location (str): The target location for venue search
+            filters (dict, optional): Additional search filters (venue type, music, price)
+
+        Returns:
+            str: The constructed search query
+        """
         query_parts = [f"nightlife venues and entertainment in {location}"]
         
         if filters:
@@ -154,7 +179,15 @@ class NightlifeAgent(BDIAgent):
         return " ".join(query_parts)
 
     def _classify_venues(self, results):
-        """Classify nightlife venues by type"""
+        """
+        Classify nightlife venues by their type from search results.
+
+        Args:
+            results (list): List of venue search results
+
+        Returns:
+            dict: Venues classified by type (bars, clubs, etc.)
+        """
         classified = {
             "bars": [],
             "clubs": [],
@@ -182,7 +215,15 @@ class NightlifeAgent(BDIAgent):
         return classified
 
     def _format_venue_results(self, classified_venues):
-        """Format venue results in a user-friendly way"""
+        """
+        Format classified venue results into a user-friendly string.
+
+        Args:
+            classified_venues (dict): Venues classified by type
+
+        Returns:
+            str: Formatted venue listings
+        """
         formatted = []
         
         for venue_type, venues in classified_venues.items():
@@ -194,11 +235,17 @@ class NightlifeAgent(BDIAgent):
         return "\n".join(formatted)
 
     def get_recommendations(self, destination):
-        """Get nightlife recommendations for a specific destination"""
-        # Primero buscar lugares nocturnos
+        """
+        Generate comprehensive nightlife recommendations for a specific destination.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            str: Detailed venue recommendations with ratings and descriptions
+        """
         nightlife_results = self.search_nightlife(destination)
         
-        # Preparar el prompt para el LLM
         system_prompt = f"""Basándote en la siguiente información sobre vida nocturna en {destination},
         genera una lista de los 5-10 mejores lugares con este formato para cada uno:
         - Nombre del lugar
@@ -220,6 +267,14 @@ class NightlifeAgent(BDIAgent):
         return response.choices[0].message.content
 
     def process_query(self, query):
-        """Process a user query to get recommendations"""
+        """
+        Process a user query to extract venue preferences and get recommendations.
+
+        Args:
+            query (str): The user's query string
+
+        Returns:
+            str: Nightlife recommendations based on the query
+        """
         self.beliefs["current_query"] = query
         return self.action({"type": "query", "content": query})

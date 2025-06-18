@@ -7,7 +7,7 @@ class HistoricAgent(BDIAgent):
         super().__init__(name, vector_db)
         self.specialization = "historic"
         self.blackboard = Blackboard()
-          # Inicializar creencias específicas de sitios históricos
+
         self.beliefs = {
             "historic_sites": {},
             "architectural_styles": [
@@ -27,13 +27,12 @@ class HistoricAgent(BDIAgent):
             "current_query": None,
             "destination": None
         }
-          # Definir deseos del agente histórico
+
         self.desires = [
-            "process_user_query",      # Procesar query para buscar sitios históricos
-            "recommend_historic_sites" # Proveer recomendaciones para un destino
+            "process_user_query",
+            "recommend_historic_sites"
         ]
         
-        # Definir planes disponibles
         self.plans = {
             "process_user_query": {
                 "objetivo": "search_historic_sites",
@@ -48,22 +47,28 @@ class HistoricAgent(BDIAgent):
         }
 
     def search_historic_sites(self, query, relevant_docs=None):
-        """Search for historic sites matching the query"""
+        """
+        Search for historic sites matching the provided query.
+
+        Args:
+            query (str): The search query string
+            relevant_docs (list, optional): Pre-filtered relevant documents
+
+        Returns:
+            str: Formatted string containing historic sites search results
+        """
         if relevant_docs is None:
             relevant_docs = self.vector_db.similarity_search(
                 self._build_historic_query(query)
             )
         
-        # Process the relevant documents
         processed_results = []
         for doc in relevant_docs:
             if any(site_type in doc.page_content.lower() for site_type in self.beliefs["site_types"]):
                 processed_results.append(doc.page_content)
                 
-        # Classify the results
         classified_sites = self._classify_historic_sites(processed_results)
           
-        # Extract location using LLM
         system_prompt = """Extract the destination/location from this query. Return ONLY the location name, nothing else.
         If no location is found, return 'unknown'."""
         
@@ -77,11 +82,9 @@ class HistoricAgent(BDIAgent):
         location = response.choices[0].message.content.strip()
         
         if location and location.lower() != 'unknown':
-            # Update beliefs
             if location not in self.beliefs["historic_sites"]:
                 self.beliefs["historic_sites"][location] = classified_sites
             
-        # Actualizar estado de las creencias
         self.beliefs["has_results"] = bool(classified_sites)
         self.beliefs["needs_recommendations"] = True
         self.beliefs["needs_event_info"] = True
@@ -90,7 +93,16 @@ class HistoricAgent(BDIAgent):
         return self._format_historic_results(classified_sites)
 
     def _build_historic_query(self, location, site_type=None):
-        """Build optimized search query for historic sites"""
+        """
+        Build an optimized search query for historic sites.
+
+        Args:
+            location (str): The target location for historic site search
+            site_type (str, optional): Specific type of historic site to search for
+
+        Returns:
+            str: The constructed search query
+        """
         query_parts = [f"historic and cultural attractions in {location}"]
         
         if site_type:
@@ -100,7 +112,15 @@ class HistoricAgent(BDIAgent):
         return " ".join(query_parts)
 
     def _classify_historic_sites(self, results):
-        """Classify historic sites by type"""
+        """
+        Classify historic sites by their type from search results.
+
+        Args:
+            results (list): List of historic site search results
+
+        Returns:
+            dict: Sites classified by type (museums, churches, etc.)
+        """
         classified = {
             "museums": [],
             "churches": [],
@@ -127,7 +147,15 @@ class HistoricAgent(BDIAgent):
         return classified
 
     def _format_historic_results(self, classified_sites):
-        """Format historic sites results in a user-friendly way"""
+        """
+        Format classified historic sites into a user-friendly string.
+
+        Args:
+            classified_sites (dict): Historic sites classified by type
+
+        Returns:
+            str: Formatted historic site listings
+        """
         formatted = []
         
         for site_type, sites in classified_sites.items():
@@ -139,7 +167,16 @@ class HistoricAgent(BDIAgent):
         return " ".join(formatted)
 
     def search_cultural_events(self, location, date_range=None):
-        """Search for cultural events in a location"""
+        """
+        Search for cultural events in a specific location.
+
+        Args:
+            location (str): The target location
+            date_range (str, optional): Date range for events search
+
+        Returns:
+            str: Formatted list of cultural events
+        """
         if not date_range:
             current_date = datetime.now()
             date_range = f"{current_date.strftime('%B %Y')}"
@@ -155,7 +192,15 @@ class HistoricAgent(BDIAgent):
         return self._format_event_results(results)
 
     def _format_event_results(self, events):
-        """Format cultural events in a user-friendly way"""
+        """
+        Format cultural events results into a user-friendly string.
+
+        Args:
+            events (list): List of cultural events
+
+        Returns:
+            str: Formatted list of upcoming cultural events
+        """
         formatted = ["\nUPCOMING CULTURAL EVENTS:"]
         
         for event in events:
@@ -164,7 +209,16 @@ class HistoricAgent(BDIAgent):
         return "\n".join(formatted)
 
     def get_site_details(self, site_name, location):
-        """Get detailed information about a specific historic site"""
+        """
+        Retrieve detailed information about a specific historic site.
+
+        Args:
+            site_name (str): Name of the historic site
+            location (str): Location of the site
+
+        Returns:
+            str: Detailed description of the historic site
+        """
         relevant_docs = self.vector_db.similarity_search(
             f"details about {site_name} in {location}"
         )
@@ -191,11 +245,17 @@ class HistoricAgent(BDIAgent):
         return details
             
     def get_recommendations(self, destination):
-        """Get historic site recommendations for a specific destination"""
-        # Primero buscar sitios históricos
+        """
+        Generate historic site recommendations for a specific destination.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            str: Detailed recommendations with ratings and descriptions
+        """
         historic_results = self.search_historic_sites(destination)
         
-        # Preparar el prompt para el LLM
         system_prompt = f"""Basándote en la siguiente información sobre sitios históricos en {destination},
         genera una lista de los 5-10 sitios más importantes con este formato para cada uno:
         - Nombre del sitio
@@ -249,24 +309,29 @@ class HistoricAgent(BDIAgent):
     def _perform_action(self, action):
         """Ejecuta una acción específica"""
         if action == "search_historic_sites":
-            # Buscar sitios históricos directamente con la query
             query = self.beliefs["current_query"]
             return self.search_historic_sites(query)
             
         elif action == "get_recommendations":
-            # Obtener recomendaciones para un destino
             return self.get_recommendations(self.beliefs["destination"])
 
     def get_recommendations(self, destination):
         """Obtiene recomendaciones usando el ciclo BDI"""
-        # Crear percepción con el destino
         percept = {"destination": destination}
         
-        # Ejecutar ciclo BDI y obtener acción
         return self.action(percept)
 
     def _compile_historic_details(self, site_name, location):
-        """Compila detalles históricos de un sitio"""
+        """
+        Compile comprehensive historical details about a site.
+
+        Args:
+            site_name (str): Name of the historic site
+            location (str): Location of the site
+
+        Returns:
+            str: Detailed historical information about the site
+        """
         details_prompt = f"""Proporciona información histórica detallada sobre {site_name} en {location}, incluyendo:
         - Origen y fecha de construcción
         - Eventos históricos importantes
