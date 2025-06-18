@@ -8,7 +8,6 @@ from datetime import datetime
 class CubaTourismSpider(CrawlSpider):
     name = "cuba_tourism"
     
-    # Lista de ciudades principales de Cuba para mejor categorización
     CITIES = [
         'habana', 'santiago', 'varadero', 'trinidad', 'cienfuegos', 
         'viñales', 'vinales', 'holguin', 'holguín', 'cayo coco',
@@ -29,13 +28,12 @@ class CubaTourismSpider(CrawlSpider):
         'ROBOTSTXT_OBEY': True,
         'DOWNLOAD_DELAY': 3,
         'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'DEPTH_LIMIT': 4  # Limita la profundidad del crawling
+        'DEPTH_LIMIT': 4
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    # Reglas para seguir enlaces relevantes
     rules = (
         Rule(
             LinkExtractor(
@@ -53,7 +51,16 @@ class CubaTourismSpider(CrawlSpider):
     )
 
     def identify_city(self, text, url):
-        """Identifica la ciudad mencionada en el texto o URL"""
+        """
+        Identify the Cuban city mentioned in the text or URL.
+
+        Args:
+            text (str): The text content to analyze
+            url (str): The URL of the page being processed
+
+        Returns:
+            str: Name of the identified city or None if no city is found
+        """
         text_lower = text.lower()
         for city in self.CITIES:
             if city in text_lower or city in url.lower():
@@ -61,15 +68,24 @@ class CubaTourismSpider(CrawlSpider):
         return None
 
     def parse(self, response):
-        # Extraer contenido principal
+        """
+        Parse the webpage content and extract relevant tourism information.
+
+        Args:
+            response (scrapy.http.Response): The response object containing the webpage
+
+        Returns:
+            dict: Structured data including city, content, attractions, and metadata,
+                 or None if insufficient content is found
+        """
         content_selectors = [
             'main p::text',
             'article p::text',
             '.content p::text',
             '.description::text',
             '#main-content p::text',
-            'div.entry-content p::text',  # Común en blogs
-            'section p::text'             # Más genérico
+            'div.entry-content p::text',
+            'section p::text'
         ]
         
         content = []
@@ -78,17 +94,14 @@ class CubaTourismSpider(CrawlSpider):
         
         content = ' '.join(content)
         
-        # Extraer título y descripción
         title = response.css('h1::text, title::text').get()
         description = response.css('meta[name="description"]::attr(content)').get()
         
-        # Identificar ciudad
         city = self.identify_city(content + ' ' + (title or ''), response.url)
         
         if not content or not city:
             return None
         
-        # Extraer atracciones específicas
         attractions = []
         attraction_selectors = [
             '.attraction::text',
@@ -102,8 +115,7 @@ class CubaTourismSpider(CrawlSpider):
             items = response.css(selector).getall()
             attractions.extend([item.strip() for item in items if any(city in item.lower() for city in self.CITIES)])
         
-        # Filtrar contenido no relevante
-        if len(content) < 100:  # Ignorar páginas con poco contenido
+        if len(content) < 100:
             return None
             
         return {
@@ -112,7 +124,7 @@ class CubaTourismSpider(CrawlSpider):
             'title': title,
             'description': description,
             'content': content,
-            'attractions': list(set(attractions)),  # Eliminar duplicados
+            'attractions': list(set(attractions)), 
             'timestamp': datetime.now().isoformat(),
             'metadata': {
                 'source': response.url,
@@ -122,5 +134,10 @@ class CubaTourismSpider(CrawlSpider):
         }
 
     def closed(self, reason):
-        """Log al terminar el crawling"""
+        """
+        Handle spider closure and perform cleanup operations.
+
+        Args:
+            reason (str): The reason for spider closure
+        """
         print(f"Spider cerrado: {reason}")

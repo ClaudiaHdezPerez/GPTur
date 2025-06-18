@@ -4,7 +4,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 class NLPProcessor:
     def __init__(self):
-        # Load Spanish language model
         self.nlp = spacy.load("es_core_news_md")
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
@@ -18,7 +17,6 @@ class NLPProcessor:
         and performing basic cleaning.
         """
         doc = self.nlp(text.lower().strip())
-        # Remove stopwords and punctuation, normalize text
         processed = " ".join([token.lemma_ for token in doc 
                             if not token.is_stop and not token.is_punct])
         return processed
@@ -42,7 +40,6 @@ class NLPProcessor:
         """
         doc = self.nlp(text)
         
-        # Simple sentiment analysis based on polarity words
         positive_words = ["excelente", "bueno", "fantástico", "increíble", "maravilloso"]
         negative_words = ["malo", "terrible", "horrible", "pésimo", "deficiente"]
         
@@ -77,7 +74,6 @@ class NLPProcessor:
                 token.pos_ in ['NOUN', 'PROPN', 'ADJ']):
                 keywords.append(token.lemma_)
                 
-        # Count frequencies and get top keywords
         from collections import Counter
         keyword_freq = Counter(keywords)
         return [word for word, _ in keyword_freq.most_common(top_n)]

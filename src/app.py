@@ -15,7 +15,6 @@ from agents.lodging_agent import LodgingAgent
 from agents.nightlife_agent import NightlifeAgent
 from pathlib import Path
 
-# Configuración de la página
 logo_path = Path(__file__).parent / "logo" / "GPTur.png"
 st.set_page_config(
     page_title="GPTur",
@@ -24,7 +23,6 @@ st.set_page_config(
 
 st.title("GPTur - Asistente Turístico de Cuba")
 
-# Inicialización de componentes
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = CubaChatbot()
     
@@ -42,17 +40,14 @@ if not st.session_state.chatbot.vector_db.get_documents():
 detector = GapDetector(st.session_state.chatbot.vector_db)
 updater = DynamicCrawler()
 
-# Inicialización de agentes principales
 guide_agent = GuideAgent(st.session_state.chatbot.vector_db)
 planner_agent = TravelPlannerAgent(st.session_state.chatbot.vector_db)
 
-# Inicialización de agentes especializados
 historic_agent = HistoricAgent("HistoricAgent", st.session_state.chatbot.vector_db)
 gastronomy_agent = GastronomyAgent("GastronomyAgent", st.session_state.chatbot.vector_db)
 lodging_agent = LodgingAgent("LodgingAgent", st.session_state.chatbot.vector_db)
 nightlife_agent = NightlifeAgent("NightlifeAgent", st.session_state.chatbot.vector_db)
 
-# Configurar agentes especializados en el planner
 planner_agent.set_specialized_agents(
     historic=historic_agent,
     gastronomy=gastronomy_agent,
@@ -60,13 +55,11 @@ planner_agent.set_specialized_agents(
     nightlife=nightlife_agent
 )
 
-# Inicialización de agentes restantes
 retriever_agent = RetrieverAgent(st.session_state.chatbot.vector_db)
 generator_agent = GeneratorAgent(guide_agent, planner_agent)
 gap_detector_agent = GapDetectorAgent(detector)
 updater_agent = UpdaterAgent(updater)
 
-# Inicialización del manager
 manager = AgentManager([
     retriever_agent,
     generator_agent,
@@ -74,42 +67,35 @@ manager = AgentManager([
     updater_agent
 ])
 
-# Estado de la conversación
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "update_triggered" not in st.session_state:
     st.session_state.update_triggered = False
 
-# Mostrar historial de mensajes
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-# Procesar input del usuario
 if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Recuperar contexto (opcional, si lo usas)
     retrieval_task = {"type": "retrieve", "query": prompt}
     context = manager.dispatch(retrieval_task, {})
 
-    # Generar respuesta
     generate_task = {"type": "generate", "prompt": prompt}
-    response = manager.dispatch(generate_task, context)    # Verificar si necesita actualización
+    response = manager.dispatch(generate_task, context)
+    
     detect_task = {"type": "detect_gap", "prompt": prompt, "response": response}
     needs_update = manager.dispatch(detect_task, context)
 
     if needs_update:
         with st.status("🔄 Actualizando información...", expanded=True) as status:
-            # Identificar fuentes a actualizar
             sources, new_context = detector.identify_outdated_sources(prompt)
             update_task = {"type": "update_sources", "sources": sources}
             manager.dispatch(update_task, context)
             st.session_state.chatbot.vector_db.update_index()
             
-            # Obtener la respuesta actual en formato texto
             current_response = str(response) if not hasattr(response, 'choices') else " ".join([choice.message.content for choice in response.choices])
             
-            # Usar Mistral AI para mejorar la respuesta con el nuevo contexto
             enhanced_response = st.session_state.chatbot.mistral_client.chat(
                 model="mistral-medium",
                 messages=[
@@ -119,11 +105,9 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
                 temperature=0.7
             )
             
-            # Actualizar la respuesta con la versión mejorada
             response = enhanced_response
             status.update(label="✅ Actualización completada", state="complete")
 
-    # Agregar respuesta final
     if hasattr(response, "choices"):
         response_text = " ".join([choice.message.content for choice in response.choices])
     else:

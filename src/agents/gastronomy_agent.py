@@ -8,7 +8,6 @@ class GastronomyAgent(BDIAgent):
         self.specialization = "gastronomy"
         self.blackboard = Blackboard()
         
-        # Initialize gastronomy-specific beliefs
         self.beliefs = {
             "restaurants": {},
             "cuisine_types": [
@@ -37,12 +36,11 @@ class GastronomyAgent(BDIAgent):
             "preferences": None
         }
         
-        # Define the agent's desires - what it wants to achieve
         self.desires = [
-            "process_user_query",      # Process query to extract preferences and destination
-            "recommend_restaurants"     # Provide restaurant recommendations for a destination
+            "process_user_query", 
+            "recommend_restaurants"
         ]
-          # Define available plans - how to achieve the desires
+
         self.plans = {
             "process_user_query": {
                 "objetivo": "extract_info_from_query",
@@ -57,30 +55,45 @@ class GastronomyAgent(BDIAgent):
         }
 
     def search_restaurants(self, query, relevant_docs=None):
-        """Search for restaurants matching the query"""
+        """
+        Search for restaurants matching the specified query.
+
+        Args:
+            query (str): The search query string
+            relevant_docs (list, optional): Pre-filtered relevant documents
+
+        Returns:
+            str: Formatted string containing restaurant search results
+        """
         if relevant_docs is None:
             relevant_docs = self.vector_db.similarity_search(
                 self._build_restaurant_query(query)
             )
             
-        # Process the relevant documents
         processed_results = []
         for doc in relevant_docs:
             if any(cuisine in doc.page_content.lower() for cuisine in self.beliefs["cuisine_types"]):
                 processed_results.append(doc.page_content)
                 
-        # Classify the results
         classified_restaurants = self._classify_restaurants(processed_results)
         
-        # Update beliefs
-        location = query.split()[0]  # Simple location extraction
+        location = query.split()[0] 
         if location not in self.beliefs["restaurants"]:
             self.beliefs["restaurants"][location] = classified_restaurants
             
         return self._format_restaurant_results(classified_restaurants)
 
     def _build_restaurant_query(self, location, filters=None):
-        """Build optimized search query based on location and filters"""
+        """
+        Constructs an optimized search query based on location and filters.
+
+        Args:
+            location (str): The target location for restaurant search
+            filters (dict, optional): Additional search filters (cuisine, price, diet, meal)
+
+        Returns:
+            str: The constructed search query
+        """
         query_parts = [f"restaurants and dining options in {location}"]
         
         if filters:
@@ -97,7 +110,15 @@ class GastronomyAgent(BDIAgent):
         return " ".join(query_parts)
 
     def _classify_restaurants(self, results):
-        """Classify restaurants by cuisine type"""
+        """
+        Classifies restaurants by cuisine type from search results.
+
+        Args:
+            results (list): List of restaurant search results
+
+        Returns:
+            dict: Restaurants classified by cuisine type
+        """
         classified = {
             "cuban": [],
             "seafood": [],
@@ -125,7 +146,15 @@ class GastronomyAgent(BDIAgent):
         return classified
 
     def _format_restaurant_results(self, classified_restaurants):
-        """Format restaurant results in a user-friendly way"""
+        """
+        Formats classified restaurant results into a user-friendly string.
+
+        Args:
+            classified_restaurants (dict): Restaurants classified by cuisine type
+
+        Returns:
+            str: Formatted restaurant listings
+        """
         formatted = []
         
         for cuisine_type, restaurants in classified_restaurants.items():
@@ -137,7 +166,17 @@ class GastronomyAgent(BDIAgent):
         return "\n".join(formatted)
 
     def get_restaurant_suggestion(self, location, preferences, budget):
-        """Get personalized restaurant suggestions"""
+        """
+        Provides personalized restaurant suggestions based on user preferences.
+
+        Args:
+            location (str): Target location
+            preferences (dict): User dining preferences
+            budget (str): User's budget level
+
+        Returns:
+            str: Personalized restaurant recommendation
+        """
         results = self.search_restaurants(location)
         
         suggestion_prompt = f"""
@@ -162,7 +201,15 @@ class GastronomyAgent(BDIAgent):
         return suggestion
             
     def _get_recommendations(self, destination):
-        """Get restaurant recommendations for a specific destination"""
+        """
+        Retrieves detailed restaurant recommendations for a specific destination.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            str: Detailed restaurant recommendations with ratings and descriptions
+        """
         prompt = f"""Dame los 10 mejores restaurantes en {destination} con el siguiente formato para cada uno:
         - Nombre del restaurante
         - Tipo de cocina
@@ -174,7 +221,6 @@ class GastronomyAgent(BDIAgent):
         
         relevant_docs = self.vector_db.similarity_search(prompt)
         
-        # Procesar los documentos relevantes
         if relevant_docs:
             system_prompt = """Basándote en la información proporcionada, genera una lista de restaurantes
             siguiendo el formato especificado. Si no hay suficiente información, genera recomendaciones
@@ -191,7 +237,6 @@ class GastronomyAgent(BDIAgent):
             )
             return response.choices[0].message.content
         
-        # Si no hay documentos relevantes, generar recomendaciones genéricas
         return f"""Aquí hay algunos restaurantes recomendados en {destination}:
         
         1. Café La Habana
@@ -225,7 +270,15 @@ class GastronomyAgent(BDIAgent):
         - Pasta fresca y pizzas artesanales en un ambiente romántico"""
 
     def _check_precondition(self, precondition) -> bool:
-        """Verify a specific precondition"""
+        """
+        Verifies if a specific precondition is met.
+
+        Args:
+            precondition (str): The precondition to check
+
+        Returns:
+            bool: True if precondition is met, False otherwise
+        """
         if precondition == "has_query":
             return "current_query" in self.beliefs and self.beliefs["current_query"] is not None
         elif precondition == "has_destination":
@@ -246,7 +299,6 @@ class GastronomyAgent(BDIAgent):
     
     def _is_compatible(self, plan) -> bool:
         """Check if a plan is compatible with current intentions"""
-        # All gastronomy plans are compatible with each other
         return True
 
     def _get_next_action(self, intention) -> str:
@@ -258,7 +310,6 @@ class GastronomyAgent(BDIAgent):
     def _perform_action(self, action):
         """Execute a specific action"""
         if action == "extract_destination_and_preferences":
-            # Extract destination from query using NLP
             query = self.beliefs["current_query"]
             system_prompt = """Extract the destination from this query. Return ONLY the destination name, nothing else.
             If no destination is found, return 'unknown'."""
@@ -275,43 +326,62 @@ class GastronomyAgent(BDIAgent):
             if destination and destination.lower() != 'unknown':
                 self.beliefs["destination"] = destination
             
-            # Extract preferences
             preferences = self._extract_preferences(query)
             self.beliefs["preferences"] = preferences
             
-            # Return restaurant suggestions based on extracted info
             return self.get_restaurant_suggestion(
                 self.beliefs["destination"],
                 preferences,
                 preferences.get("price_range", "moderate")
             )
         elif action == "get_recommendations":
-            # Direct recommendations for a destination
             return self._get_recommendations(self.beliefs["destination"])
 
     def process_query(self, query):
-        """Process a user query to extract preferences and get recommendations"""
+        """
+        Processes a user query to extract preferences and generate recommendations.
+
+        Args:
+            query (str): The user's query string
+
+        Returns:
+            str: Restaurant recommendations based on the query
+        """
         self.beliefs["current_query"] = query
-        # Extract destination from query (this is a simplified example)
-        # In a real implementation, you might want to use NLP to extract the destination
         words = query.split()
         for word in words:
-            if word.istitle():  # Simple heuristic: capitalized words might be places
+            if word.istitle():
                 self.beliefs["destination"] = word
                 break
         
         return self.action({"type": "query", "content": query})
 
     def get_recommendations(self, destination):
-        """Get recommendations for a specific destination"""
+        """
+        Gets general restaurant recommendations for a destination.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            str: List of recommended restaurants
+        """
         self.beliefs["destination"] = destination
-        self.beliefs["current_query"] = None  # Clear any existing query
-        self.beliefs["preferences"] = None    # Clear any existing preferences
+        self.beliefs["current_query"] = None
+        self.beliefs["preferences"] = None 
         
         return self.action({"type": "destination", "content": destination})
 
     def _extract_preferences(self, query):
-        """Extrae preferencias gastronómicas de la consulta"""
+        """
+        Extracts dining preferences from a user query.
+
+        Args:
+            query (str): The user's query string
+
+        Returns:
+            dict: Extracted preferences including cuisine, price range, diet, and meal type
+        """
         system_prompt = """Eres un asistente que extrae preferencias gastronómicas.
         IMPORTANTE: Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido, sin texto adicional.
         
@@ -334,24 +404,16 @@ class GastronomyAgent(BDIAgent):
                 ]
             )
             
-            # Obtener la respuesta y limpiarla
             response_text = response.choices[0].message.content.strip()
-            
-            # Depuración
-            print(f"Respuesta del modelo: {response_text}")
-            
-            # Si la respuesta está envuelta en ```, removerlos
+                        
             if response_text.startswith("```") and response_text.endswith("```"):
                 response_text = response_text[3:-3].strip()
             
-            # Si la respuesta está envuelta en ```json, removerlos
             if response_text.startswith("```json") and response_text.endswith("```"):
                 response_text = response_text[7:-3].strip()
             
-            # Intentar parsear la respuesta como JSON
             preferences = json.loads(response_text)
             
-            # Validar y establecer valores por defecto
             default_preferences = {
                 "cuisine": "any",
                 "price_range": "moderate",
@@ -361,19 +423,15 @@ class GastronomyAgent(BDIAgent):
             
             valid_preferences = default_preferences.copy()
             
-            # Validar cuisine
             if "cuisine" in preferences and preferences["cuisine"].lower() in [c.lower() for c in self.beliefs["cuisine_types"] + ["any"]]:
                 valid_preferences["cuisine"] = preferences["cuisine"].lower()
             
-            # Validar price_range
             if "price_range" in preferences and preferences["price_range"].lower() in self.beliefs["price_ranges"]:
                 valid_preferences["price_range"] = preferences["price_range"].lower()
             
-            # Validar diet
             if "diet" in preferences and preferences["diet"].lower() in [d.lower() for d in self.beliefs["special_diets"] + ["none"]]:
                 valid_preferences["diet"] = preferences["diet"].lower()
             
-            # Validar meal
             if "meal" in preferences and preferences["meal"].lower() in [m.lower() for m in self.beliefs["meal_types"] + ["any"]]:
                 valid_preferences["meal"] = preferences["meal"].lower()
             

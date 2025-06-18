@@ -6,10 +6,14 @@ import time
 import numpy as np
 from scipy.stats import norm
 from dataclasses import dataclass
-from typing import List, Dict, Any, Union, final
+from typing import List, Dict, Any, Union
 
 @dataclass
 class StochasticPrice:
+    """
+    A class representing a price with stochastic variation.
+    Used for simulating real-world price fluctuations in travel planning.
+    """
     base_price: float
     std_dev: float = None
     
@@ -18,10 +22,20 @@ class StochasticPrice:
             self.std_dev = self.base_price * 0.2
     
     def sample(self) -> float:
+        """
+        Generate a random price sample based on normal distribution.
+
+        Returns:
+            float: A random price value, minimum 1.0
+        """
         return max(1.0, norm.rvs(loc=self.base_price, scale=self.std_dev))
 
 @dataclass
 class Place:
+    """
+    A class representing a tourist destination or venue with its attributes.
+    Includes name, location, cost, rating and other relevant information.
+    """
     name: str
     city: str
     cost: Union[float, StochasticPrice]
@@ -31,6 +45,12 @@ class Place:
     description: str = ""
     
     def get_cost(self) -> float:
+        """
+        Calculate the final cost of the place, either static or stochastic.
+
+        Returns:
+            float: The final calculated cost
+        """
         if isinstance(self.cost, StochasticPrice):
             self.final_cost = self.cost.sample()
         else:
@@ -42,12 +62,10 @@ class TravelPlannerAgent(BDIAgent):
     def __init__(self, vector_db):
         super().__init__("PlanificadorViajes", vector_db)
         
-        # Definir deseos base del agente
         self.desires = [
             "crear_itinerario"
         ]
         
-        # Definir planes disponibles
         self.plans = {
             "crear_itinerario": {
                 "objetivo": "crear_itinerario",
@@ -62,12 +80,30 @@ class TravelPlannerAgent(BDIAgent):
         self.nightlife_agent = None
 
     def set_specialized_agents(self, historic, gastronomy, lodging, nightlife):
+        """
+        Set up specialized agents for different aspects of travel planning.
+
+        Args:
+            historic: Agent for historical sites and attractions
+            gastronomy: Agent for restaurants and dining
+            lodging: Agent for accommodations
+            nightlife: Agent for nightlife and entertainment
+        """
         self.historic_agent = historic
         self.gastronomy_agent = gastronomy
         self.lodging_agent = lodging
         self.nightlife_agent = nightlife
 
     def _get_places_from_agents(self, destination: str) -> Dict[str, List[Place]]:
+        """
+        Collect place recommendations from all specialized agents.
+
+        Args:
+            destination (str): Target destination
+
+        Returns:
+            Dict[str, List[Place]]: Places categorized by type (gastronomy, nightlife, lodging)
+        """
         places = {
             "gastronomicos": [],
             "nocturnos": [],
@@ -76,7 +112,6 @@ class TravelPlannerAgent(BDIAgent):
         
         percept = {"destination": destination}
         
-        # Obtener lugares gastronómicos
         gastro_response = self.gastronomy_agent.action(percept)
         for place in self._parse_agent_response(gastro_response):
             places["gastronomicos"].append(Place(
@@ -89,7 +124,6 @@ class TravelPlannerAgent(BDIAgent):
                 description=place.get("description", "")
             ))
 
-        # Obtener lugares nocturnos
         night_response = self.nightlife_agent.action(percept)
         for place in self._parse_agent_response(night_response):
             places["nocturnos"].append(Place(
@@ -102,7 +136,6 @@ class TravelPlannerAgent(BDIAgent):
                 description=place.get("description", "")
             ))
 
-        # Obtener alojamientos
         lodging_response = self.lodging_agent.action(percept)
         for place in self._parse_agent_response(lodging_response):
             places["alojamientos"].append(Place(
@@ -118,24 +151,37 @@ class TravelPlannerAgent(BDIAgent):
         return places
 
     def _parse_cost(self, cost_str: str) -> float:
-        """Extrae y procesa el costo de un string, devolviendo un número"""
+        """
+        Extract and process cost value from a string representation.
+
+        Args:
+            cost_str (str): String containing cost information
+
+        Returns:
+            float: Processed cost value
+        """
         if isinstance(cost_str, (int, float)):
             return float(cost_str)
             
-        # Si es un string, extraer números
         numbers = re.findall(r'\d+', str(cost_str))
         if not numbers:
-            return 25.0  # valor por defecto si no se encuentra ningún número
+            return 25.0
             
-        # Si hay un rango (ej: "15-25"), tomar el promedio
         if len(numbers) >= 2:
             return (float(numbers[0]) + float(numbers[1])) / 2
             
-        # Si hay un solo número
         return float(numbers[0])
 
     def _parse_agent_response(self, response: str) -> List[Dict[str, Any]]:
-        """Convierte la respuesta del agente en una lista de diccionarios"""
+        """
+        Parse agent responses into structured data.
+
+        Args:
+            response (str): Raw response from an agent
+
+        Returns:
+            List[Dict[str, Any]]: List of parsed place information
+        """
         try:
             system_prompt = """Extrae la información de los lugares mencionados en el texto.
             Por cada lugar devuelve un diccionario con:
@@ -154,7 +200,6 @@ class TravelPlannerAgent(BDIAgent):
             )
             result = eval(parsed.choices[0].message.content)
             
-            # Procesar los costos a números
             for item in result:
                 if "cost" in item:
                     item["cost"] = self._parse_cost(item["cost"])
@@ -163,14 +208,27 @@ class TravelPlannerAgent(BDIAgent):
             
             return result
         except:
-            # Valores por defecto si hay error
             return [
                 {"name": "Lugar Genérico", "cost": 25.0, "rating": 7.0, "description": "Lugar típico"}
             ]    
             
     def simulated_annealing_csp(self, days: int, places: Dict[str, List[Place]], 
                 budget_per_day: float, destination: str, max_iter: int = 1000,
-                max_time: float = 120):  # 120 segundos = 2 minutos
+                max_time: float = 120):
+        """
+        Generate optimized travel itinerary using simulated annealing algorithm.
+
+        Args:
+            days (int): Number of days for the itinerary
+            places (Dict[str, List[Place]]): Available places by category
+            budget_per_day (float): Maximum daily budget
+            destination (str): Travel destination
+            max_iter (int, optional): Maximum iterations per temperature. Defaults to 1000
+            max_time (float, optional): Maximum execution time in seconds. Defaults to 120
+
+        Returns:
+            List[Dict[str, Place]]: Optimized itinerary for the entire trip
+        """
 
         def generate_initial_solution():
             solution = []
@@ -222,7 +280,6 @@ class TravelPlannerAgent(BDIAgent):
                     return False
             return True
 
-        # Inicialización
         print("Iniciando recocido simulado para planificar viaje...")
         current_sol = generate_initial_solution()
         while not is_valid_solution(current_sol):
@@ -231,17 +288,15 @@ class TravelPlannerAgent(BDIAgent):
         best_sol = current_sol.copy()
         best_rating = calculate_total_rating(current_sol)
         
-        # Parámetros de recocido
         T = 100.0
         T_min = 0.1
         alpha = 0.99
         
-        start_time = time.time()  # Registrar tiempo de inicio
+        start_time = time.time() 
         while T > T_min:
             for _ in range(max_iter):
-                # Verificar si se excedió el tiempo límite
                 if time.time() - start_time > max_time:
-                    return best_sol  # Devolver la mejor solución encontrada hasta ahora
+                    return best_sol
                     
                 neighbor_sol = generate_neighbor(current_sol)
                 if not is_valid_solution(neighbor_sol):
@@ -262,6 +317,15 @@ class TravelPlannerAgent(BDIAgent):
         return best_sol
 
     def _format_itinerary(self, solution: List[Dict[str, Place]]) -> str:
+        """
+        Format the generated itinerary into a user-friendly string.
+
+        Args:
+            solution (List[Dict[str, Place]]): The optimized itinerary
+
+        Returns:
+            str: Formatted itinerary with detailed descriptions
+        """
         itinerary = "🌟 Itinerario de Viaje 🌟\n\n"
         
         for i, day in enumerate(solution, 1):
@@ -299,11 +363,19 @@ class TravelPlannerAgent(BDIAgent):
         return formatted_itinerary
 
     def create_itinerary(self, preferences: Dict[str, Any]) -> str:
+        """
+        Create a complete travel itinerary based on user preferences.
+
+        Args:
+            preferences (Dict[str, Any]): User preferences including destination, days, and budget
+
+        Returns:
+            str: Complete formatted itinerary
+        """
         destination = preferences.get("destino", "Cuba")
         days = preferences.get("dias", 5)
         budget = preferences.get("presupuesto", 50)
                 
-        # Obtener lugares de los agentes especializados
         places = self._get_places_from_agents(destination)
 
         print("dias:", days)
@@ -311,7 +383,6 @@ class TravelPlannerAgent(BDIAgent):
         print("budget:", budget)
         print("places:", places)
         
-        # Ejecutar CSP con recocido simulado
         solution = self.simulated_annealing_csp(
             days=days,
             places=places,
@@ -343,7 +414,6 @@ class TravelPlannerAgent(BDIAgent):
         
     def _evaluate_intention(self, option) -> bool:
         """Evalúa si una opción debe convertirse en intención"""
-        # Evaluar basado en el estado actual y recursos disponibles
         if option["objetivo"] == "crear_itinerario":
             return "destino" in self.beliefs
         return True

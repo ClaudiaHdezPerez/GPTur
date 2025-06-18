@@ -3,39 +3,74 @@ import logging
 from .base_agent import BaseAgent
 import streamlit as st
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @staticmethod
 def _convert_docs_to_string(documents):
-    # Concatenate page_content from all documents
+    """
+    Convert a list of documents into a single concatenated string.
+
+    Args:
+        documents (list): List of document objects containing page_content
+
+    Returns:
+        str: Combined string of all document contents
+    """
     combined_content = ""
     for doc in documents:
         try:
-            # Parse the page_content which is a JSON string
             content_json = json.loads(doc.page_content)
             page_content = content_json.get("page_content", "")
             if page_content:
                 combined_content += page_content + " "
         except json.JSONDecodeError as e:
             logger.warning(f"Error parsing document JSON: {e}")
-            # Try to use the raw page_content if JSON parsing fails
             if hasattr(doc, 'page_content'):
                 combined_content += str(doc.page_content) + " "
     return combined_content.strip()
 
 
 class GeneratorAgent(BaseAgent):
+    """
+    An agent responsible for generating responses and handling different types of user queries.
+    Coordinates between guide and planner agents based on user intent.
+    """
+
     def __init__(self, guide_agent, planner_agent):
+        """
+        Initialize the generator agent with its required dependencies.
+
+        Args:
+            guide_agent: Agent handling general tourist information queries
+            planner_agent: Agent handling travel planning queries
+        """
         self.guide_agent = guide_agent
         self.planner_agent = planner_agent
 
     def can_handle(self, task):
+        """
+        Check if the agent can handle the given task.
+
+        Args:
+            task (dict): The task to be evaluated
+
+        Returns:
+            bool: True if the task is of type 'generate', False otherwise
+        """
         return task.get("type") == "generate"
 
     def _extract_travel_params(self, prompt):
-        # Usar LLM para extraer parámetros
+        """
+        Extract travel parameters from user prompt using LLM.
+
+        Args:
+            prompt (str): User's input text
+
+        Returns:
+            dict: Extracted parameters including days, destination, budget and interests
+                 with default values if extraction fails
+        """
         system_prompt = """Extrae los siguientes parámetros del texto del usuario y responde SOLO con un JSON válido que contenga exactamente estos campos:
         - días (número entre 1-15, default 5)
         - destino (ciudad o país, default Cuba)
@@ -54,12 +89,9 @@ class GeneratorAgent(BaseAgent):
         
         try:
             content = response.choices[0].message.content.strip()
-            # Log the raw response for debugging
             logger.info(f"LLM Response: {content}")
             
-            # Try to find and extract just the JSON part if there's extra text
             try:
-                # Find the first { and last }
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 if start >= 0 and end > start:
@@ -68,7 +100,6 @@ class GeneratorAgent(BaseAgent):
                 else:
                     raise json.JSONDecodeError("No JSON object found", content, 0)
             except json.JSONDecodeError:
-                # If that fails, try parsing the whole response
                 params = json.loads(content)
                 
             return {
@@ -96,12 +127,20 @@ class GeneratorAgent(BaseAgent):
             }
             
     def handle(self, task, context):
+        """
+        Process the task and generate appropriate response using either guide or planner agent.
+
+        Args:
+            task (dict): The task containing the prompt to process
+            context (dict): Additional context information
+
+        Returns:
+            str: Generated response from either guide or planner agent
+        """
         prompt = task.get("prompt")
         
-        # Convert context documents to string if context is a list of documents
         context_text = _convert_docs_to_string(context) if isinstance(context, list) else str(context)
         
-        # Detect user intention with MistralAI client
         system_prompt = """Analiza la intención del usuario y clasifícala en una de estas categorías:
         - PLANNING: Si el usuario quiere planear un viaje o crear un itinerario
         - INFO: Si el usuario busca información general, recomendaciones o respuestas sobre lugares
@@ -117,10 +156,8 @@ class GeneratorAgent(BaseAgent):
         )
         intent = intent_response.choices[0].message.content.strip()
         
-        # If the intention is planner, use the planner agent
         if intent == "PLANNING":
             preferences = self._extract_travel_params(prompt)
             return self.planner_agent.action(preferences)
         
-        # By default, use the guide agent
         return self.guide_agent.action((prompt, context_text))
