@@ -29,27 +29,6 @@ class VectorStorage:
         
         self._sources_file = "sources.json"
         self.sources = self._load_sources()
-
-    # def _initialize_collection(self):
-    #     """Inicializa o recupera la colección"""
-    #     existing_collections = self.client.list_collections()
-    #     collection_exists = any(x.name == self.collection_name for x in existing_collections)
-        
-    #     if collection_exists:
-    #         collection = self.client.get_collection(self.collection_name)
-    #         # Si no hay documentos, agregamos uno dummy
-    #         self.client.delete_collection(self.collection_name)
-    #         if collection.count() == 0:
-    #             self.client.create_collection(
-    #                 name=self.collection_name,
-    #                 metadata={"hnsw:space": "cosine"}
-    #             )
-    #     else:
-    #         print(f"Creando nueva colección: {self.collection_name}")
-    #         self.client.create_collection(
-    #             name=self.collection_name,
-    #             metadata={"hnsw:space": "cosine"}
-    #         )
     
     def _initialize_collection(self):
         """Inicializa o recupera la colección"""
