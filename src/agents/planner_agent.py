@@ -214,7 +214,7 @@ class TravelPlannerAgent(BDIAgent):
             
     def simulated_annealing_csp(self, days: int, places: Dict[str, List[Place]], 
                 budget_per_day: float, destination: str, max_iter: int = 1000,
-                max_time: float = 120):
+                max_time: float = 180):
         """
         Generate optimized travel itinerary using simulated annealing algorithm.
 
@@ -242,16 +242,36 @@ class TravelPlannerAgent(BDIAgent):
                 }
                 solution.append(day)
             return solution
+        
+        def get_price_means(sol, n):
+            means = []
+            for day in sol:
+                day_costs = { key: 0 for key in day }
+                for _ in range(n):
+                    day_costs["desayuno"] += day["desayuno"].get_cost()
+                    day_costs["almuerzo"] += day["almuerzo"].get_cost()
+                    day_costs["cena"] += day["cena"].get_cost()
+                    day_costs["noche"] += day["noche"].get_cost()
+                    day_costs["alojamiento"] += day["alojamiento"].get_cost()
+                
+                day_costs = { key: day_costs[key] / 30 for key in day_costs }
+                means.append(sum(day_costs.values()))
+            
+            return means
 
-        def calculate_total_rating(sol):
-            return sum(
+        def evaluate(sol, n=30):
+            ratings = [
                 day["desayuno"].rating +
                 day["almuerzo"].rating +
                 day["cena"].rating +
                 day["noche"].rating +
                 day["alojamiento"].rating
                 for day in sol
-            )
+            ]
+            
+            price_means = get_price_means(sol, n)
+            
+            return sum([ratings[i] / price_means[i] for i in range(len(sol))])
 
         def generate_neighbor(sol):
             day = random.randint(0, len(sol)-1)
@@ -286,7 +306,7 @@ class TravelPlannerAgent(BDIAgent):
             current_sol = generate_initial_solution()
             
         best_sol = current_sol.copy()
-        best_rating = calculate_total_rating(current_sol)
+        best_rating = evaluate(current_sol)
         
         T = 100.0
         T_min = 0.1
@@ -302,8 +322,8 @@ class TravelPlannerAgent(BDIAgent):
                 if not is_valid_solution(neighbor_sol):
                     continue
                     
-                current_rating = calculate_total_rating(current_sol)
-                neighbor_rating = calculate_total_rating(neighbor_sol)
+                current_rating = evaluate(current_sol)
+                neighbor_rating = evaluate(neighbor_sol)
                 
                 delta = neighbor_rating - current_rating
                 if delta > 0 or random.random() < math.exp(delta / T):
@@ -352,7 +372,7 @@ class TravelPlannerAgent(BDIAgent):
         response = self.client.chat(
             model="mistral-medium",
             messages=[
-                {"role": "system", "content": """Como experto en turismo, genera una descripción detallada y atractiva 
+                {"role": "system", "content": """Como experto en turismo, genera una descripción detallada, atractiva y en buen formato
                 del itinerario proporcionado. de forma rápida"""},
                 {"role": "user", "content": f"Por favor, genera un itinerario atractivo basado en esta información: {itinerary}"}
             ]

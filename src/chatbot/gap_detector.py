@@ -158,8 +158,8 @@ class GapDetector:
         Proporciona 2-3 enlaces a fuentes oficiales o sitios web confiables con información actualizada.
         Responde en formato JSON exactamente así:
         [
-            {{"url": "URL1", "title": "Breve título descriptivo"}},
-            {{"url": "URL2", "title": "Breve título descriptivo"}}
+            "URL1",
+            "URL2"
         ]
         """
 
@@ -181,10 +181,10 @@ class GapDetector:
             normalized_data = self._load_json_file(normalized_file)
 
             for source in new_sources:
-                if not any(existing == source['url'] for existing in existing_sources):
-                    existing_sources.append(source['url'])
+                if not any(existing == source for existing in existing_sources):
+                    existing_sources.append(source)
 
-                    webpage_info = self._fetch_webpage_info(source['url'])
+                    webpage_info = self._fetch_webpage_info(source)
                     if webpage_info:
                         webpage_info['city'] = city.lower()
                         normalized_data.append(webpage_info)
@@ -196,4 +196,4 @@ class GapDetector:
 
         except Exception as e:
             print(f"Error al buscar fuentes actualizadas: {e}")
-            return []
+            return [], {}
