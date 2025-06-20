@@ -139,7 +139,7 @@ Está compuesto por una entrada, un recuperador, un generador y una salida. La i
 \end{enumerate}
 
 \vspace{\baselineskip}
-\subsection{Arquitectura Multiagente} \cite{Garcia2020}
+\subsection{Arquitectura Multiagente \cite{Garcia2020}}
 
 Un sistema multiagente está constituido por un conjunto de agentes, cada uno con determinadas capacidades y recursos para la solución de problemas inherentemente distribuidos. Los agentes interactúan entre ellos, determinan y coordinan tareas a realizar según sus capacidades y recursos.
 
@@ -288,7 +288,7 @@ Estas tareas permiten que el sistema interprete correctamente las necesidades de
 
 \vspace{\baselineskip}
 
-\subsection{Metaheurística y Problema de Satisfacción de Restricciones} \cite{Talbi2009}
+\subsection{Metaheurística y Problema de Satisfacción de Restricciones \cite{Talbi2009}}
 
 
 %...
@@ -299,13 +299,13 @@ El sistema debe generar un itinerario diario considerando:
 \begin{itemize}
     \item \textit{Actividades:} Desayuno, almuerzo, cena, actividad nocturna y alojamiento.
     \item \textit{Restricciones:} Presupuesto diario máximo.
-    \item \textit{Objetivo:} Maximizar la valoración total de los lugares seleccionados.
+    \item \textit{Objetivo:} Maximizar la proporción calidad-precio de los lugares seleccionados.
 \end{itemize}
 
 Matemáticamente, el problema se formula como:
 
 \[
-\max \sum_{d=1}^{D} \sum_{a \in A} r_{d,a}
+\max \sum_{d=1}^{D} \dfrac{\sum_{a \in A} r_{d,a}}{\sum_{a \in A}\overline{X_a} }
 \]
 \[
 \text{sujeto a: }
@@ -318,14 +318,18 @@ Donde:
     \item $A = \{\text{desayuno}, \text{almuerzo}, \text{cena}, \text{noche}, \text{alojamiento}\}$
     \item $r_{d,a}$: Valoración del lugar asignado al día $d$ para actividad $a$
     \item $c_{d,a}$: Costo del lugar asignado al día $d$ para actividad $a$
+    \item $\overline{X_a}$: Precio medio de la actividad $a$
     \item $B_d$: Presupuesto máximo para el día $d$
 \end{itemize}
 
+El problema está entonces sujeto a un proceso estocástico, pues para calcular $\overline{X_a}$ se realizan 30 simulaciones 
+sobre la solución actual, calculando la media de precios para cada actividad. Los precios están representados por una variable aleatoria 
+que distribuye normal con parámetros $\mu = \text{precio\_base}$ y $\sigma = 20\% * \text{precio\_base}$.
+
 \subsubsection{Algoritmo de Recocido Simulado:}
-El recocido simulado es una metaheurística inspirada en el proceso térmico de recocido en metalurgia. Para el problema en cuestión pudiese surgir la 
-interrogante de por qué utilizar metaheurística para resolver un problema de optimización lineal. La respuesta es simple: los costos asociados a cada 
-lugar están representados por un proceso estocástico, que representa situaciones reales, como ofertas, descuentos, diferencia de precios según la época del año, los 
-fines de semana, en fin, un conjunto de situaciones que evitan que los precios sean estáticos. A continuación se describe la implementación del algoritmo.
+El recocido simulado es una metaheurística inspirada en el proceso térmico de recocido en metalurgia. El problema que se presenta, debe ser resuelto utilizando 
+metaheurística pues es representado por un proceso estocástico. Específicamente se eligió este algoritmo porque era sencillo de implementar
+A continuación se describe la implementación del algoritmo.
 
 \paragraph{Representación de la Solución:}
 Cada solución se representa como una matriz donde las filas corresponden a días y las columnas a tipos de actividad:
@@ -346,7 +350,7 @@ Donde $L_{ij}$ es un lugar seleccionado del conjunto correspondiente a la catego
 La calidad de una solución se calcula como la suma de las valoraciones de todos los lugares seleccionados:
 
 \[
-f(S) = \sum_{d=1}^{D} \sum_{a \in A} \text{rating}(L_{d,a})
+f(S) = \sum_{d=1}^{D} \dfrac{\sum_{a \in A} \text{rating}(L_{d,a})}{\sum_{a \in A} \overline{X_a}}
 \]
 
 \paragraph{Generación de Vecinos:}
