@@ -488,6 +488,79 @@ En resumen, se puede observar que al añadir agentes especializados al sistema, 
 que la decisión tomada estuvo acertada.
 
 \vspace{\baselineskip}
+\subsection{Evaluación de la Metaheurística}
+
+Este estudio evalúa el algoritmo de recocido simulado implementado, con enfoque en su convergencia y sensibilidad a los parámetros $T$ y $\alpha$.
+
+Se evaluaron combinaciones sistemáticas de:
+\begin{itemize}
+    \item \textit{Temperatura inicial (T):} 100, 200
+    \item \textit{Factor de enfriamiento ($\alpha$):} 0.95, 0.99
+\end{itemize}
+
+Para el experimento se tuvo en cuenta las siguiente configuraciones:
+\begin{itemize}
+    \item \textit{Ejecuciones:} 30 por combinación (total 120 ejecuciones)
+    \item \textit{Duración viaje:} 3 días
+    \item \textit{Presupuesto diario:} 150 dólares
+    \item \textit{Lugares disponibles:}
+    \begin{itemize}
+        \item Restaurantes: 15
+        \item Locales nocturnos: 10
+        \item Alojamientos: 8
+    \end{itemize}
+    \item \textit{Tiempo máximo:} 180 segundos por ejecución
+\end{itemize}
+
+Para evaluar cada combinación se tuvo en cuenta:
+\begin{enumerate}
+    \item Resultado (evaluación de la solución dada)
+    \item Iteración de convergencia (iteración a partir de la cual la evaluación de la solución se mantuvo sobre el 99\% de la solución final)
+\end{enumerate}
+
+\subsubsection{Resultados:}
+
+Luego de realizar el experimento, se llegó a los siguientes resultados por combinación
+(\tabref{tab:resultados-finales}):
+
+\begin{table}[h]
+\centering
+\caption{Resultados promedio de convergencia por combinación de parámetros}
+\label{tab:resultados-finales}
+\begin{tabular}{cccccc}
+\toprule
+$T$ & $\alpha$ & Puntuación & Mejora & Convergencia \\
+\midrule
+100 & 0.95 & 1.15 & 0.23 & 5120 \\
+100 & 0.99 & \textbf{1.16} & \textbf{0.24} & \textbf{4239} \\
+200 & 0.95 & 1.14 & 0.22 & 5870 \\
+200 & 0.99 & 1.15 & 0.23 & 5015 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{remark}
+Las curvas de convergencia promedio se muestran en la {\figref{fig:avg_convergence}}
+\end{remark}
+
+\subsubsection{Conclusión:}
+Para la planificación de itinerarios mediante recocido simulado, se recomienda:
+
+
+\begin{itemize}
+    \item Temperatura inicial: $T = 100$
+    \item Factor de enfriamiento: $\alpha = 0.99$
+\end{itemize}
+
+\textit{Justificación:}
+\begin{itemize}
+    \item Maximiza la calidad de la solución (puntuación promedio: 1.16)
+    \item Converge más rápido  (promedio de iteraciones: 4239)
+\end{itemize}
+
+%....
+
+\vspace{\baselineskip}
 \section{Conclusiones}
 
 
@@ -555,6 +628,12 @@ A continuación se muestran los apéndices del informe.
 \includegraphics[width=1\textwidth]{../src/experiments/specialized_agents/quality_heatmap_20250617-171856.png}
 \caption{Evaluaciones obtenidas para la respuesta a cada pregunta en la muestra inicial (tamaño 30)}
 \label{fig:eval_2}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=1\textwidth]{../src/experiments/algorithm_exp/avg_convergence_20250620-190453.png}
+\caption{Convergencia promedio por combinación de parámetros}
+\label{fig:avg_convergence}
 \end{figure}
 
 % --- Apéndice B ---
