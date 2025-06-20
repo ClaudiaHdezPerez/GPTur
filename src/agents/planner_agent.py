@@ -259,7 +259,7 @@ class TravelPlannerAgent(BDIAgent):
         self, days: int, places: Dict[str, List[Place]], 
         budget_per_day: float, destination: str, max_iter: int = 1000,
         max_time: float = 180, T: float = 100.0, alpha: float = 0.99, 
-        T_min: float = 0.1, callback: callable = None
+        T_min: float = 0.1
     ):
         """
         Generate optimized travel itinerary using simulated annealing algorithm.
@@ -289,22 +289,6 @@ class TravelPlannerAgent(BDIAgent):
                 solution.append(day)
             return solution
         
-        def get_price_means(sol, n):
-            means = []
-            for day in sol:
-                day_costs = { key: 0 for key in day }
-                for _ in range(n):
-                    day_costs["desayuno"] += day["desayuno"].get_cost()
-                    day_costs["almuerzo"] += day["almuerzo"].get_cost()
-                    day_costs["cena"] += day["cena"].get_cost()
-                    day_costs["noche"] += day["noche"].get_cost()
-                    day_costs["alojamiento"] += day["alojamiento"].get_cost()
-                
-                day_costs = { key: day_costs[key] / 30 for key in day_costs }
-                means.append(sum(day_costs.values()))
-            
-            return means
-
         def generate_neighbor(sol):
             day = random.randint(0, len(sol)-1)
             activity = random.choice(["desayuno", "almuerzo", "cena", "noche", "alojamiento"])
@@ -331,22 +315,10 @@ class TravelPlannerAgent(BDIAgent):
         best_rating = self.evaluate(current_sol)
         
         start_time = time.time()
-        iter_count = 0
         while T > T_min:
             for _ in range(max_iter):
-                iter_count += 1
                 current_time = time.time() - start_time
                 if current_time > max_time:
-                    if callback:
-                        # Enviar datos finales al callback
-                        callback({
-                            "iteration": iter_count,
-                            "best_rating": best_rating,
-                            "current_rating": current_rating,
-                            "temperature": T,
-                            "time": current_time,
-                            "finished": False
-                        })
                     return best_sol
                     
                 neighbor_sol = generate_neighbor(current_sol)
@@ -362,31 +334,9 @@ class TravelPlannerAgent(BDIAgent):
                     if neighbor_rating > best_rating:
                         best_sol = neighbor_sol.copy()
                         best_rating = neighbor_rating
-                
-                # Registrar datos de convergencia en cada iteración
-                if callback and iter_count % 10 == 0:  # Registrar cada 10 iteraciones
-                    callback({
-                        "iteration": iter_count,
-                        "best_rating": best_rating,
-                        "current_rating": current_rating,
-                        "temperature": T,
-                        "time": current_time,
-                        "finished": False
-                    })
             
             T *= alpha
-            
-            # Registrar datos finales
-        if callback:
-            callback({
-                "iteration": iter_count,
-                "best_rating": best_rating,
-                "current_rating": current_rating,
-                "temperature": T,
-                "time": time.time() - start_time,
-                "finished": True
-            })
-        
+    
         return best_sol
 
     def _format_itinerary(self, solution: List[Dict[str, Place]]) -> str:
