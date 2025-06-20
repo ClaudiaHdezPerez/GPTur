@@ -210,11 +210,57 @@ class TravelPlannerAgent(BDIAgent):
         except:
             return [
                 {"name": "Lugar Genérico", "cost": 25.0, "rating": 7.0, "description": "Lugar típico"}
-            ]    
+            ]
+    
+    def get_price_means(self, sol, n):
+        means = []
+        for day in sol:
+            day_costs = { key: 0 for key in day }
+            for _ in range(n):
+                day_costs["desayuno"] += day["desayuno"].get_cost()
+                day_costs["almuerzo"] += day["almuerzo"].get_cost()
+                day_costs["cena"] += day["cena"].get_cost()
+                day_costs["noche"] += day["noche"].get_cost()
+                day_costs["alojamiento"] += day["alojamiento"].get_cost()
             
-    def simulated_annealing_csp(self, days: int, places: Dict[str, List[Place]], 
-                budget_per_day: float, destination: str, max_iter: int = 1000,
-                max_time: float = 180):
+            day_costs = { key: day_costs[key] / 30 for key in day_costs }
+            means.append(sum(day_costs.values()))
+        
+        return means
+
+    def evaluate(self, sol, n=30):
+        ratings = [
+            day["desayuno"].rating +
+            day["almuerzo"].rating +
+            day["cena"].rating +
+            day["noche"].rating +
+            day["alojamiento"].rating
+            for day in sol
+        ]
+        
+        price_means = self.get_price_means(sol, n)
+        
+        return sum([ratings[i] / price_means[i] for i in range(len(sol))])
+    
+    def is_valid_solution(self, sol, budget_per_day):
+        for day in sol:
+            total_cost = (
+                day["desayuno"].get_cost() +
+                day["almuerzo"].get_cost() +
+                day["cena"].get_cost() +
+                day["noche"].get_cost() +
+                day["alojamiento"].get_cost()
+            )
+            if total_cost > budget_per_day:
+                return False
+        return True
+            
+    def simulated_annealing_csp(
+        self, days: int, places: Dict[str, List[Place]], 
+        budget_per_day: float, destination: str, max_iter: int = 1000,
+        max_time: float = 180, T: float = 100.0, alpha: float = 0.99, 
+        T_min: float = 0.1, callback: callable = None
+    ):
         """
         Generate optimized travel itinerary using simulated annealing algorithm.
 
@@ -259,20 +305,6 @@ class TravelPlannerAgent(BDIAgent):
             
             return means
 
-        def evaluate(sol, n=30):
-            ratings = [
-                day["desayuno"].rating +
-                day["almuerzo"].rating +
-                day["cena"].rating +
-                day["noche"].rating +
-                day["alojamiento"].rating
-                for day in sol
-            ]
-            
-            price_means = get_price_means(sol, n)
-            
-            return sum([ratings[i] / price_means[i] for i in range(len(sol))])
-
         def generate_neighbor(sol):
             day = random.randint(0, len(sol)-1)
             activity = random.choice(["desayuno", "almuerzo", "cena", "noche", "alojamiento"])
@@ -287,43 +319,42 @@ class TravelPlannerAgent(BDIAgent):
             
             return new_sol
 
-        def is_valid_solution(sol):
-            for day in sol:
-                total_cost = (
-                    day["desayuno"].get_cost() +
-                    day["almuerzo"].get_cost() +
-                    day["cena"].get_cost() +
-                    day["noche"].get_cost() +
-                    day["alojamiento"].get_cost()
-                )
-                if total_cost > budget_per_day:
-                    return False
-            return True
+        def _is_valid_solution(sol):
+            return self.is_valid_solution(sol, budget_per_day)
 
         print("Iniciando recocido simulado para planificar viaje...")
         current_sol = generate_initial_solution()
-        while not is_valid_solution(current_sol):
+        while not _is_valid_solution(current_sol):
             current_sol = generate_initial_solution()
             
         best_sol = current_sol.copy()
-        best_rating = evaluate(current_sol)
+        best_rating = self.evaluate(current_sol)
         
-        T = 100.0
-        T_min = 0.1
-        alpha = 0.99
-        
-        start_time = time.time() 
+        start_time = time.time()
+        iter_count = 0
         while T > T_min:
             for _ in range(max_iter):
-                if time.time() - start_time > max_time:
+                iter_count += 1
+                current_time = time.time() - start_time
+                if current_time > max_time:
+                    if callback:
+                        # Enviar datos finales al callback
+                        callback({
+                            "iteration": iter_count,
+                            "best_rating": best_rating,
+                            "current_rating": current_rating,
+                            "temperature": T,
+                            "time": current_time,
+                            "finished": False
+                        })
                     return best_sol
                     
                 neighbor_sol = generate_neighbor(current_sol)
-                if not is_valid_solution(neighbor_sol):
+                if not _is_valid_solution(neighbor_sol):
                     continue
                     
-                current_rating = evaluate(current_sol)
-                neighbor_rating = evaluate(neighbor_sol)
+                current_rating = self.evaluate(current_sol)
+                neighbor_rating = self.evaluate(neighbor_sol)
                 
                 delta = neighbor_rating - current_rating
                 if delta > 0 or random.random() < math.exp(delta / T):
@@ -331,8 +362,30 @@ class TravelPlannerAgent(BDIAgent):
                     if neighbor_rating > best_rating:
                         best_sol = neighbor_sol.copy()
                         best_rating = neighbor_rating
+                
+                # Registrar datos de convergencia en cada iteración
+                if callback and iter_count % 10 == 0:  # Registrar cada 10 iteraciones
+                    callback({
+                        "iteration": iter_count,
+                        "best_rating": best_rating,
+                        "current_rating": current_rating,
+                        "temperature": T,
+                        "time": current_time,
+                        "finished": False
+                    })
             
             T *= alpha
+            
+            # Registrar datos finales
+        if callback:
+            callback({
+                "iteration": iter_count,
+                "best_rating": best_rating,
+                "current_rating": current_rating,
+                "temperature": T,
+                "time": time.time() - start_time,
+                "finished": True
+            })
         
         return best_sol
 
