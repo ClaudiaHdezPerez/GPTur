@@ -1,4 +1,5 @@
 import streamlit as st
+from sympy import false
 from chatbot.core import CubaChatbot
 from chatbot.gap_detector import GapDetector
 from crawlers.dynamic_crawler import DynamicCrawler
@@ -14,6 +15,24 @@ from agents.historic_agent import HistoricAgent
 from agents.lodging_agent import LodgingAgent
 from agents.nightlife_agent import NightlifeAgent
 from pathlib import Path
+import time
+import random
+
+def human_typing(response: str, role: str = "assistant",
+                 min_delay: float = 0.02, max_delay: float = 0.1):
+    """
+    Simulates human typing.
+    - response: text to be shown.
+    - role: "assistant" or "user".
+    - min_delay, max_delay: delay range.
+    """
+    with st.chat_message(role):
+        placeholder = st.empty()  # Dentro del mensaje de chat
+        typed = ""
+        for word in response.split(" "):
+            typed += word + " "
+            placeholder.markdown(typed)
+            time.sleep(random.uniform(min_delay, max_delay))
 
 logo_path = Path(__file__).parent / "logo" / "GPTur.png"
 st.set_page_config(
@@ -21,7 +40,11 @@ st.set_page_config(
     page_icon=str(logo_path)
 )
 
-st.title("GPTur - Asistente Turístico de Cuba")
+columns = st.columns(5)
+with columns[2]:
+    st.image(logo_path, use_container_width=True)
+    
+st.title("Asistente Turístico de Cuba")
 
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = CubaChatbot()
@@ -72,11 +95,12 @@ if "messages" not in st.session_state:
 if "update_triggered" not in st.session_state:
     st.session_state.update_triggered = False
 
-for msg in st.session_state.messages:
+for msg in st.session_state.messages:   
     st.chat_message(msg["role"]).write(msg["content"])
 
 if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
 
     retrieval_task = {"type": "retrieve", "query": prompt}
     context = manager.dispatch(retrieval_task, {})
@@ -86,6 +110,8 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
     
     detect_task = {"type": "detect_gap", "prompt": prompt, "response": response}
     needs_update = manager.dispatch(detect_task, context)
+    
+    print("Respuesta dada:", response)
 
     if needs_update:
         with st.status("🔄 Actualizando información...", expanded=True) as status:
@@ -114,4 +140,4 @@ if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
         response_text = str(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response_text})
-    st.rerun()
+    human_typing(response_text, role="assistant", min_delay=0.03, max_delay=0.12)

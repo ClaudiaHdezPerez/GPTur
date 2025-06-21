@@ -6,9 +6,10 @@ import os
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
+from vector_db.chroma_storage import VectorStorage
 
 class GapDetector:
-    def __init__(self, vector_db):
+    def __init__(self, vector_db: VectorStorage):
         self.vector_db = vector_db
         self.bm25_retriever = BM25Retriever.from_documents(self.vector_db.get_documents())
         self.client = MistralClient(api_key="XEV0fCx3MqiG9HqVkGc4Hy5qyD3WwPHr")
@@ -85,19 +86,19 @@ class GapDetector:
         Returns:
             bool: True if the response needs updating, False otherwise
         """
-        relevant_docs = self.bm25_retriever.get_relevant_documents(query)
 
         verification_prompt = f"""
         Eres un validador de información turística. Evalúa si la respuesta dada necesita actualización 
-        basándote en el contexto proporcionado. Responde **solo con una palabra**: 
-
+        basándote en la pregunta realizada. Si la respuesta es lo suficientemente larga (mayor de 800 caracteres
+        responde OK, porque no necesite actualización). Responde **solo con una palabra**: 
+        
         [RESPUESTA ACTUAL]
         {response}
 
-        [CONTEXTO ACTUALIZADO]
-        {relevant_docs[:2]}
+        [PREGUNTA ACTUAL]
+        {query}
 
-        ¿La respuesta está desactualizada o es incompleta? Responde: ACTUALIZAR o OK.
+        ¿La respuesta está desactualizada o es incompleta con respecto a la pregunta realizada? Responde: ACTUALIZAR o OK.
         """
 
         messages = [
