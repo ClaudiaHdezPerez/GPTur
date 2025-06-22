@@ -1,0 +1,2 @@
+original_mean,original_std,bootstrap_mean,bootstrap_std,ci_95_lower,ci_95_upper,n_bootstraps,sample_size
+4.633333333333334,0.6046119049072352,4.6335,0.11583980797252347,4.4,4.833333333333333,1000,30

@@ -224,6 +224,8 @@ class GuideAgent(BDIAgent):
                 }]
             )
         else:
+            if len(context) > 130000:
+                context = context[:130000]
             response = self.client.chat(
                 model="mistral-medium",
                 messages=[{

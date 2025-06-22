@@ -105,7 +105,7 @@ class GeneratorAgent(BaseAgent):
             return {
                 "dias": params.get("dias", 5),
                 "destino": params.get("destino", "Cuba"),
-                "presupuesto": params.get("presupuesto", 50),
+                "presupuesto": params.get("presupuesto", 100),
                 "intereses": prompt
             }
         except json.JSONDecodeError as e:
@@ -114,7 +114,7 @@ class GeneratorAgent(BaseAgent):
             return {                
                 "dias": 5,
                 "destino": "Cuba", 
-                "presupuesto": 300,
+                "presupuesto": 100,
                 "intereses": prompt
             }
         except Exception as e:
@@ -122,7 +122,7 @@ class GeneratorAgent(BaseAgent):
             return {                
                 "dias": 5,
                 "destino": "Cuba", 
-                "presupuesto": 50,
+                "presupuesto": 100,
                 "intereses": prompt
             }
             
@@ -137,6 +137,7 @@ class GeneratorAgent(BaseAgent):
         Returns:
             str: Generated response from either guide or planner agent
         """
+        print("\nGeneratorAgent.handle")
         prompt = task.get("prompt")
         
         context_text = _convert_docs_to_string(context) if isinstance(context, list) else str(context)

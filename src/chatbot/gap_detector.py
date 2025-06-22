@@ -153,7 +153,7 @@ class GapDetector:
         docs_content = "\n".join([doc.page_content for doc in relevant_docs])
 
         prompt = f"""
-        Basado en esta información turística sobre {city}:
+        Basado en esta información turística sobre {city} en Cuba:
         {docs_content}
 
         Proporciona 2-3 enlaces a fuentes oficiales o sitios web confiables con información actualizada.

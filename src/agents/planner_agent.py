@@ -195,7 +195,7 @@ class TravelPlannerAgent(BDIAgent):
                 model="mistral-small",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": response}
+                    {"role": "user", "content": response[:130000]}
                 ]
             )
             result = eval(parsed.choices[0].message.content)
@@ -308,7 +308,10 @@ class TravelPlannerAgent(BDIAgent):
 
         print("Iniciando recocido simulado para planificar viaje...")
         current_sol = generate_initial_solution()
+        start_time = time.time()
         while not _is_valid_solution(current_sol):
+            if (time.time() - start_time) > max_time:
+                return None
             current_sol = generate_initial_solution()
             
         best_sol = current_sol.copy()
@@ -397,7 +400,7 @@ class TravelPlannerAgent(BDIAgent):
         """
         destination = preferences.get("destino", "Cuba")
         days = preferences.get("dias", 5)
-        budget = preferences.get("presupuesto", 50)
+        budget = preferences.get("presupuesto", 100)
                 
         places = self._get_places_from_agents(destination)
 
@@ -412,6 +415,9 @@ class TravelPlannerAgent(BDIAgent):
             budget_per_day=budget,
             destination=destination
         )
+        
+        if not solution:
+            return "Lo siento, no se pudo generar un itinerario con las condiciones dadas."
         
         return self._format_itinerary(solution)
 
