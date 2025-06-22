@@ -453,7 +453,7 @@ Desviación Estándar & 0.4582... & 0.0839...  \\
 \end{table}
 
 \begin{remark}
-Se obtuvo un intervalo de confianza de $[3.5333..., 3.8666...]$, lo que indica unos resultados aceptables. 
+Se obtuvo un intervalo de confianza de $[3.5333...; 3.8666...]$, lo que indica unos resultados aceptables. 
 La Figura {\figref{fig:boot_dist_1}} muestra la distribución bootstrap de la puntuación media y la figura
 {\figref{fig:eval_1}} muestra un mapa de calor con las puntuaciones otorgadas a las respuestas del sistema a las 
 30 preguntas iniciales.
@@ -478,7 +478,7 @@ Desviación Estándar & 0.6182... & 0.1166...  \\
 \end{table}
 
 \begin{remark}
-Se obtuvo un intervalo de confianza de $[3.90,4.3666...]$, lo que indica unos resultados bastante buenos. 
+Se obtuvo un intervalo de confianza de $[3.90;4.3666...]$, lo que indica unos resultados bastante buenos. 
 La Figura {\figref{fig:boot_dist_2}} muestra la distribución bootstrap de la puntuación media y la figura 
 {\figref{fig:eval_2}} muestra un mapa de calor con las puntuaciones otorgadas a las respuestas del sistema a las 
 30 preguntas iniciales.
@@ -486,6 +486,33 @@ La Figura {\figref{fig:boot_dist_2}} muestra la distribución bootstrap de la pu
 
 En resumen, se puede observar que al añadir agentes especializados al sistema, mejoró la respuesta del modelo, lo cual demostró 
 que la decisión tomada estuvo acertada.
+
+\subsubsection{Evaluación Final del Sistema:}
+
+La Tabla \tabref{tab:boot_results_3} resume las métricas clave obtenidas:
+
+\begin{table}[h]
+\centering
+\caption{Resultados del análisis de bootstrapping (IC 95\%)}
+\label{tab:boot_results_3}
+\begin{tabular}{lccc}
+\hline
+\textbf{Métrica} & \textbf{Original} & \textbf{Bootstrapped}  \\
+\hline 
+Puntuación Media& 4.6333... & 4.6335  \\
+Desviación Estándar & 0.6046... & 0.1158...  \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{remark}
+Se obtuvo un intervalo de confianza de $[4.40 ; 4.8333...]$, lo que indica unos resultados excelentes. 
+La Figura {\figref{fig:boot_dist_3}} muestra la distribución bootstrap de la puntuación media y la figura 
+{\figref{fig:eval_3}} muestra un mapa de calor con las puntuaciones otorgadas a las respuestas del sistema a las 
+30 preguntas iniciales.
+\end{remark}
+
+La evaluación final valida la evolución ascendente del sistema y la solidez y completitud de las respuestas dadas.
 
 \vspace{\baselineskip}
 \subsection{Evaluación de la Metaheurística}
@@ -629,6 +656,21 @@ A continuación se muestran los apéndices del informe.
 \caption{Evaluaciones obtenidas para la respuesta a cada pregunta en la muestra inicial (tamaño 30)}
 \label{fig:eval_2}
 \end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{../src/experiments/final_evaluation/bootstrap_distribution_20250621-210327.png}
+\caption{Distribución bootstrap de la puntuación media ($N=1000$). La línea discontinua roja indica la media bootstrap (4.63)}
+\label{fig:boot_dist_3}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{../src/experiments/final_evaluation/quality_heatmap_20250621-210327.png}
+\caption{Evaluaciones obtenidas para la respuesta a cada pregunta en la muestra inicial (tamaño 30)}
+\label{fig:eval_3}
+\end{figure}
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=1\textwidth]{../src/experiments/algorithm_exp/avg_convergence_20250620-190453.png}
