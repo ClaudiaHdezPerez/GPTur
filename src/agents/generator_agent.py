@@ -159,6 +159,6 @@ class GeneratorAgent(BaseAgent):
         
         if intent == "PLANNING":
             preferences = self._extract_travel_params(prompt)
-            return self.planner_agent.action(preferences)
+            return self.planner_agent.action(preferences), intent
         
-        return self.guide_agent.action((prompt, context_text))
+        return self.guide_agent.action((prompt, context_text)), intent

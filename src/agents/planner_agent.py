@@ -310,7 +310,7 @@ class TravelPlannerAgent(BDIAgent):
         current_sol = generate_initial_solution()
         start_time = time.time()
         while not _is_valid_solution(current_sol):
-            if (time.time() - start_time) > max_time:
+            if (time.time() - start_time) > 300:
                 return None
             current_sol = generate_initial_solution()
             
