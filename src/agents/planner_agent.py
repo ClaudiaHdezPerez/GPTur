@@ -4,7 +4,7 @@ import random
 import re
 import time
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import truncnorm
 from dataclasses import dataclass
 from typing import List, Dict, Any, Union
 
@@ -16,10 +16,14 @@ class StochasticPrice:
     """
     base_price: float
     std_dev: float = None
+    lower: float = None
+    upper: float = None
     
     def __post_init__(self):
         if self.std_dev is None:
             self.std_dev = self.base_price * 0.2
+            self.lower = (self.base_price * 0.5 - self.base_price) / self.std_dev
+            self.upper = (self.base_price * 2 - self.base_price) / self.std_dev
     
     def sample(self) -> float:
         """
@@ -28,7 +32,7 @@ class StochasticPrice:
         Returns:
             float: A random price value, minimum 1.0
         """
-        return max(1.0, norm.rvs(loc=self.base_price, scale=self.std_dev))
+        return truncnorm.rvs(self.lower, self.upper, loc=self.base_price, scale=self.std_dev)
 
 @dataclass
 class Place:
