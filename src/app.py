@@ -43,7 +43,7 @@ st.set_page_config(
 columns = st.columns(5)
 with columns[2]:
     st.image(logo_path, use_container_width=True)
-st.markdown("<h1 style='text-align: center;'>Asistente Turístico de Cuba<\h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>Asistente Turístico de Cuba</h3>", unsafe_allow_html=True)
 
 try:
     if "chatbot" not in st.session_state:
