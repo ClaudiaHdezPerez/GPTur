@@ -2,8 +2,21 @@ import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from pathlib import Path
-import re
+import json
 from datetime import datetime
+
+def _load_sources():
+    """
+    Load source URLs from the JSON file.
+
+    Returns:
+        list: List of source URLs or empty list if file doesn't exist
+    """
+    sources_path = Path(__file__).parent.parent / "data" / "sources.json"
+    if sources_path.exists():
+        with open(sources_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return [] 
 
 class CubaTourismSpider(CrawlSpider):
     name = "cuba_tourism"
@@ -49,7 +62,9 @@ class CubaTourismSpider(CrawlSpider):
             follow=True
         ),
     )
-
+    
+    start_urls = _load_sources()
+    
     def identify_city(self, text, url):
         """
         Identify the Cuban city mentioned in the text or URL.

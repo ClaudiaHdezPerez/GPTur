@@ -146,7 +146,5 @@ try:
         human_typing(response_text, role="assistant", min_delay=0.03, max_delay=0.12)
 
 except Exception as e:
-    st.status(f"Error: {e}", expanded=True)
-    time.sleep(60)
-    status.update(label="Terminado", state="complete")
+    print(f"Error en la aplicación: {str(e)}")
     st.rerun()
