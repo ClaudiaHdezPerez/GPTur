@@ -247,7 +247,12 @@ class TravelPlannerAgent(BDIAgent):
         return sum([ratings[i] / price_means[i] for i in range(len(sol))])
     
     def is_valid_solution(self, sol, budget_per_day):
-        for day in sol:
+        for idx, day in enumerate(sol):
+            if (idx > 0 and 
+                day["noche"].name == sol[idx-1]["noche"].name       
+            ):
+                return False
+                
             total_cost = (
                 day["desayuno"].get_cost() +
                 day["almuerzo"].get_cost() +
