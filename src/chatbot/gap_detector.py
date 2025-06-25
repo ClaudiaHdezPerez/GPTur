@@ -118,7 +118,7 @@ class GapDetector:
 
         return "ACTUALIZAR" in verification_result
 
-    def identify_outdated_sources(self, query, city=None):
+    def identify_outdated_sources(self, query, new_sources, city=None):
         """
         Identify and update outdated information sources based on a query.
 
@@ -149,32 +149,7 @@ class GapDetector:
                 print(f"Error al extraer ciudad: {e}")
                 city = "Cuba"
 
-        relevant_docs = self.vector_db.similarity_search(query, k=2)
-        docs_content = "\n".join([doc.page_content for doc in relevant_docs])
-
-        prompt = f"""
-        Basado en esta información turística sobre {city} en Cuba:
-        {docs_content}
-
-        Proporciona 2-3 enlaces a fuentes oficiales o sitios web confiables con información actualizada.
-        Responde en formato JSON exactamente así:
-        [
-            "URL1",
-            "URL2"
-        ]
-        """
-
-        messages = [ChatMessage(role="user", content=prompt)]
-
         try:
-            api_response = self.client.chat(
-                model="mistral-small",
-                messages=messages,
-                temperature=0.7
-            )
-
-            new_sources = json.loads(api_response.choices[0].message.content.strip())
-
             sources_file = os.path.join(self.base_dir, 'src', 'data', 'sources.json')
             normalized_file = os.path.join(self.base_dir, 'src', 'data', 'processed', 'normalized_data.json')
 

@@ -45,59 +45,60 @@ with columns[2]:
     st.image(logo_path, use_container_width=True)
 st.markdown("<h3 style='text-align: center;'>Asistente Turístico de Cuba</h3>", unsafe_allow_html=True)
 
-try:
-    if "chatbot" not in st.session_state:
-        st.session_state.chatbot = CubaChatbot()
-        
-    if not st.session_state.chatbot.vector_db.get_documents():
-        print("\nCargando datos iniciales...\n")
-        try:
-            st.session_state.chatbot.vector_db.reload_data()
-            if not st.session_state.chatbot.vector_db.get_documents():
-                st.error("Error: No se pudieron cargar los datos iniciales")
-                st.stop()
-        except Exception as e:
-            st.error(f"Error crítico: {str(e)}")
+# try:
+if "chatbot" not in st.session_state:
+    st.session_state.chatbot = CubaChatbot()
+    
+if not st.session_state.chatbot.vector_db.get_documents():
+    print("\nCargando datos iniciales...\n")
+    try:
+        st.session_state.chatbot.vector_db.reload_data()
+        if not st.session_state.chatbot.vector_db.get_documents():
+            st.error("Error: No se pudieron cargar los datos iniciales")
             st.stop()
+    except Exception as e:
+        st.error(f"Error crítico: {str(e)}")
+        st.stop()
 
-    detector = GapDetector(st.session_state.chatbot.vector_db)
-    updater = DynamicCrawler()
+detector = GapDetector(st.session_state.chatbot.vector_db)
+updater = DynamicCrawler()
 
-    guide_agent = GuideAgent(st.session_state.chatbot.vector_db)
-    planner_agent = TravelPlannerAgent(st.session_state.chatbot.vector_db)
+guide_agent = GuideAgent(st.session_state.chatbot.vector_db)
+planner_agent = TravelPlannerAgent(st.session_state.chatbot.vector_db)
 
-    historic_agent = HistoricAgent("HistoricAgent", st.session_state.chatbot.vector_db)
-    gastronomy_agent = GastronomyAgent("GastronomyAgent", st.session_state.chatbot.vector_db)
-    lodging_agent = LodgingAgent("LodgingAgent", st.session_state.chatbot.vector_db)
-    nightlife_agent = NightlifeAgent("NightlifeAgent", st.session_state.chatbot.vector_db)
+historic_agent = HistoricAgent("HistoricAgent", st.session_state.chatbot.vector_db)
+gastronomy_agent = GastronomyAgent("GastronomyAgent", st.session_state.chatbot.vector_db)
+lodging_agent = LodgingAgent("LodgingAgent", st.session_state.chatbot.vector_db)
+nightlife_agent = NightlifeAgent("NightlifeAgent", st.session_state.chatbot.vector_db)
 
-    planner_agent.set_specialized_agents(
-        historic=historic_agent,
-        gastronomy=gastronomy_agent,
-        lodging=lodging_agent,
-        nightlife=nightlife_agent
-    )
+planner_agent.set_specialized_agents(
+    historic=historic_agent,
+    gastronomy=gastronomy_agent,
+    lodging=lodging_agent,
+    nightlife=nightlife_agent
+)
 
-    retriever_agent = RetrieverAgent(st.session_state.chatbot.vector_db)
-    generator_agent = GeneratorAgent(guide_agent, planner_agent)
-    gap_detector_agent = GapDetectorAgent(detector)
-    updater_agent = UpdaterAgent(updater)
+retriever_agent = RetrieverAgent(st.session_state.chatbot.vector_db)
+generator_agent = GeneratorAgent(guide_agent, planner_agent)
+gap_detector_agent = GapDetectorAgent(detector)
+updater_agent = UpdaterAgent(updater)
 
-    manager = AgentManager([
-        retriever_agent,
-        generator_agent,
-        gap_detector_agent,
-        updater_agent
-    ])
+manager = AgentManager([
+    retriever_agent,
+    generator_agent,
+    gap_detector_agent,
+    updater_agent
+])
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "update_triggered" not in st.session_state:
-        st.session_state.update_triggered = False
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "update_triggered" not in st.session_state:
+    st.session_state.update_triggered = False
 
-    for msg in st.session_state.messages:   
-        st.chat_message(msg["role"]).write(msg["content"])
+for msg in st.session_state.messages:   
+    st.chat_message(msg["role"]).write(msg["content"])
 
+try:
     if prompt := st.chat_input("Pregunta sobre lugares turísticos"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
@@ -108,17 +109,20 @@ try:
         generate_task = {"type": "generate", "prompt": prompt}
         response, intent = manager.dispatch(generate_task, context)
         
+        detector_response = {}
+        
         if intent == "PLANNING":
             needs_update = False
         else:
             detect_task = {"type": "detect_gap", "prompt": prompt, "response": response}
-            needs_update = manager.dispatch(detect_task, context)
+            detector_response = manager.dispatch(detect_task, context)
+            needs_update = detector_response["gap_detected"]
         
         print("Respuesta dada:", response)
 
         if needs_update:
             with st.status("🔄 Actualizando información...", expanded=True) as status:
-                sources, new_context = detector.identify_outdated_sources(prompt)
+                sources, new_context = detector.identify_outdated_sources(prompt, detector_response["duckduckgo_links"])
                 update_task = {"type": "update_sources", "sources": sources}
                 manager.dispatch(update_task, context)
                 st.session_state.chatbot.vector_db.update_index()

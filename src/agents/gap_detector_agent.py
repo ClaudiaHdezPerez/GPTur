@@ -30,7 +30,9 @@ class GapDetectorAgent(BaseAgent):
         """
         # Prompt the LLM to generate a search query for the missing info
         search_prompt = f"""
-        You are an expert at formulating web search queries. Given the following user question and the current answer, generate a single, highly effective search query in Spanish that would help find the most relevant and up-to-date information missing from the answer. Only return the search query, nothing else.
+        You are an expert at formulating web search queries. Given the following user question and the current answer, 
+        generate a single, highly effective search query in Spanish that would help find the most relevant and up-to-date 
+        information missing from the answer. Only return the search query, nothing else.
 
         [User Question]
         {prompt}
