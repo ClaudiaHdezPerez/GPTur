@@ -86,7 +86,7 @@
 \title{GPTur}
 \titlerunning{Título abreviado} % Sugerencia para running head
 
-\author{Claudia Hernández Pérez \and Joel Aparicio Tamayo \and Kendry Javier Del Pino Barbosa}
+\author{Claudia Hernández Pérez C-312 \and Joel Aparicio Tamayo C-312 \and Kendry Javier Del Pino Barbosa C-312}
 \authorrunning{Autor1 et al.} % Apellidos para running head
 
 \institute{
@@ -115,10 +115,17 @@ innovadoras que superen estas barreras mediante inteligencia artificial. \textit
 un sistema de agentes inteligentes que funciona como guía turístico virtual, está diseñado específicamente 
 para ser una alternativa viable en ese escenario.
 
-La aplicación consiste en un chatbot capaz de responder consultas sobre destinos turísticos cubanos y sus peculiaridades, así como de generar itinerarios para \textit{tours} ajustándose a un presupuesto. 
 El sistema está programado en \textit{Python}, aprovechando la comodidad del lenguaje y la diversidad de bibliotecas útiles que ofrece. La interfaz está diseñada con \textit{streamlit} (framework de \textit{Python} para \textit{frontend}), 
 pues ofrece un estilo sencillo, moderno y fácil de programar para entornos web. El código fuente de la aplicación se puede encontrar en 
 la plataforma GitHub: \href{https://github.com/ClaudiaHdezPerez/GPTur}{\color{blue}https://github.com/ClaudiaHdezPerez/GPTur}.
+
+\section{Descripción del tema}\label{sec:descripcion}
+
+El proyecto surge con el objetivo de facilitar información y sugerir \textit{tours} a los usuarios interesados en realizar turismo en Cuba
+o conocer sobre los destinos más destacados de la Isla. Para ello se combinaron habilidades obtenidas en los cursos de Sistema de 
+Recuperación de Información, Simulación e Inteligencia Artificial.
+
+La aplicación consiste en un chatbot capaz de responder consultas sobre destinos turísticos cubanos y sus peculiaridades, así como de generar itinerarios para \textit{tours} ajustándose a un presupuesto.
 
 \section{Detalles de Implementación}\label{sec:implementacion}
 
@@ -587,6 +594,40 @@ Para la planificación de itinerarios mediante recocido simulado, se recomienda:
 
 %....
 
+\section{Declaración autocrítica del proyecto}\label{sec:autocritica}
+
+Durante el desarrollo de este proyecto se obtuvieron logros significativos, a la vez que se detectaron limitaciones, que 
+dado el tiempo que se dispuso para su implementación, se sugerirán posibles soluciones para superarlas.
+
+\subsection{Logros obtenidos}
+
+Como muestra del esfuerzo se obtuvo un sistema capaz de mostrar información turística relevante y generar itinerarios
+interesantes. Se logró:
+
+\begin{itemize}
+    \item Búsqueda automatizada de información turística.
+    \item Recomendar \textit{tours} basándose en un presupuesto diario.
+    \item Recomendar lugares de interés en dependencia de la intención del usuario.
+    \item Proporcionar una interfaz intuitiva para los usuarios.
+\end{itemize}
+
+
+\subsection{Limitaciones detectadas}
+
+Como todo sistema, tiene limitaciones que no pudieron resolverse en el tiempo especificado:
+\begin{itemize}
+    \item No considerar las distancias entre los sitios a la hora de planear viajes utilizando la metaheurística.
+    \item No considerar el transporte como elemento fundamental en los \textit{tours}.
+    \item No utilizar ontologías para realizar inferencias sobre los sentimientos e intenciones del usuario.
+\end{itemize}
+
+No obstante, se proponen algunas soluciones para lograrlas:
+\begin{itemize}
+    \item Integrar el sistema a una API con datos sobre la ubicación de sitios turísticos y que permita calcular distancias.
+    \item Añadir nuevos agentes especializados para manejar otros problemas, como por ejemplo el del transporte.
+    \item Integrar una ontología o un sistema basado en reglas para captar mejor las intenciones del usuario.
+\end{itemize}
+
 \vspace{\baselineskip}
 \section{Conclusiones}
 
@@ -600,20 +641,6 @@ de desarrollo, lo que justifica las decisiones tomadas para la implementación p
 
 La aplicación es una muestra del esfuerzo de todo un semestre y de los conocimientos adquiridos en los temas de \textit{Simulación}, \textit{Inteligencia Artificial} y \textit{Sistemas de Recuperación de Información}, pues en tiempo récord se logró 
 implementar un RAG, una arquitectura multiagente, metaheurística, entre otros muchos aspectos, que debieron ser quirúrjicamente enlazados para el funcionamiento completo del programa.
-
-Por supuesto, como todo sistema, tiene limitaciones que no pudieron resolverse en el tiempo especificado:
-\begin{itemize}
-    \item No considerar las distancias entre los sitios a la hora de planear viajes utilizando la metaheurística.
-    \item No considerar el transporte como elemento fundamental en los \textit{tours}.
-    \item No utilizar ontologías para realizar inferencias sobre los sentimientos e intenciones del usuario.
-\end{itemize}
-
-No obstante, se proponen algunas soluciones para lograrlas:
-\begin{itemize}
-    \item Integrar el sistema a una API con datos sobre la ubicación de sitios turísticos y que permita calcular distancias.
-    \item Añadir nuevos agentes especializados para manejar otros problemas, como por ejemplo el del transporte.
-    \item Integrar una ontología o un sistema basado en reglas para captar mejor las intenciones del usuario.
-\end{itemize}
 
 Por todo lo expuesto y más, GPTur ha llegado a ser una experiencia magnífica para cada uno de sus desarrolladores.
 
